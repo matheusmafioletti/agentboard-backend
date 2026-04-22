@@ -1,0 +1,8 @@
+plugins {
+    id 'java-library'
+}
+
+dependencies {
+    api 'org.springframework.security:spring-security-core'
+    api 'io.jsonwebtoken:jjwt-api:0.12.6'
+}

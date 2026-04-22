@@ -1,0 +1,6 @@
+rootProject.name = 'agentboard-backend'
+
+include 'commons'
+include 'auth-service'
+include 'board-service'
+include 'agent-service'
