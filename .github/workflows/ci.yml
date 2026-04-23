@@ -41,5 +41,14 @@ jobs:
       - name: Pact Verify
         run: ./gradlew pactVerify --continue || true
 
+      - name: Upload Pact contracts artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pact-contracts
+          path: |
+            **/pacts/*.json
+          if-no-files-found: ignore
+
       - name: Build
         run: ./gradlew build
