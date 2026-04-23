@@ -5,4 +5,7 @@ plugins {
 dependencies {
     api 'org.springframework.security:spring-security-core'
     api 'io.jsonwebtoken:jjwt-api:0.12.6'
+    api 'org.springframework:spring-web'
+    testImplementation 'io.jsonwebtoken:jjwt-impl:0.12.6'
+    testImplementation 'io.jsonwebtoken:jjwt-jackson:0.12.6'
 }
