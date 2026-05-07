@@ -7,15 +7,15 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
-import java.time.OffsetDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 /**
- * An audit record for a single SpecKit command execution against a Feature Card.
+ * Immutable audit record for every SpecKit command invocation.
  *
- * <p>IMPORTANT: {@code startedAt} and initial {@code status} are set at creation and must not be
- * changed. Only {@code finishedAt}, {@code durationMs}, and {@code errorMessage} may be updated
- * on completion.
+ * <p>IMPORTANT: Every CommandExecution must reference exactly one WorkItem via
+ * {@link #workItemId}. Status transitions: RUNNING → COMPLETED or RUNNING → FAILED only.
+ * A terminal status may not change again.
  */
 @Entity
 @Table(name = "command_execution")
@@ -25,66 +25,67 @@ public class CommandExecution {
   @GeneratedValue(strategy = GenerationType.UUID)
   private UUID id;
 
-  @Column(name = "feature_card_id", nullable = false)
-  private UUID featureCardId;
+  @Column(name = "project_id")
+  private UUID projectId;
 
-  @Column(name = "tenant_id", nullable = false)
-  private UUID tenantId;
+  @Column(name = "work_item_id", nullable = false)
+  private UUID workItemId;
 
-  @Column(nullable = false, length = 50)
+  @Column(nullable = false, length = 100)
   private String command;
+
+  @Column(name = "agent_id", length = 255)
+  private String agentId;
 
   @Column(nullable = false, length = 20)
   private String status;
 
-  @Column(name = "agent_identifier", length = 255)
-  private String agentIdentifier;
-
-  @Column(name = "error_message", columnDefinition = "TEXT")
-  private String errorMessage;
-
   @Column(name = "started_at", nullable = false, updatable = false)
-  private OffsetDateTime startedAt;
+  private Instant startedAt;
 
   @Column(name = "finished_at")
-  private OffsetDateTime finishedAt;
-
-  @Column(name = "duration_ms")
-  private Long durationMs;
+  private Instant finishedAt;
 
   /** Required by JPA. */
   protected CommandExecution() {}
 
-  /** Creates a new execution record in SUCCESS status. */
-  public CommandExecution(UUID tenantId, UUID featureCardId, String command,
-      String agentIdentifier) {
-    this.tenantId = tenantId;
-    this.featureCardId = featureCardId;
-    this.command = command;
-    this.status = "SUCCESS";
-    this.agentIdentifier = agentIdentifier;
+  /**
+   * Creates a RUNNING command execution scoped to a WorkItem.
+   *
+   * @param projectId  the owning project
+   * @param workItemId the work item being operated on
+   * @param command    the SpecKit command name
+   * @param agentId    the identifier of the agent invoking the command
+   */
+  public static CommandExecution forWorkItem(UUID projectId, UUID workItemId,
+      String command, String agentId) {
+    CommandExecution ce = new CommandExecution();
+    ce.projectId = projectId;
+    ce.workItemId = workItemId;
+    ce.command = command;
+    ce.agentId = agentId;
+    ce.status = "RUNNING";
+    return ce;
   }
 
   @PrePersist
   void onCreate() {
-    this.startedAt = OffsetDateTime.now();
-    this.finishedAt = OffsetDateTime.now();
-    this.durationMs = 0L;
+    this.startedAt = Instant.now();
   }
 
-  /** Returns this execution's unique identifier. */
+  /** Returns the execution's unique identifier. */
   public UUID getId() {
     return id;
   }
 
-  /** Returns the owning feature card's identifier. */
-  public UUID getFeatureCardId() {
-    return featureCardId;
+  /** Returns the owning project's identifier. */
+  public UUID getProjectId() {
+    return projectId;
   }
 
-  /** Returns the owning tenant's identifier. */
-  public UUID getTenantId() {
-    return tenantId;
+  /** Returns the work item this execution is scoped to. */
+  public UUID getWorkItemId() {
+    return workItemId;
   }
 
   /** Returns the SpecKit command name. */
@@ -92,33 +93,35 @@ public class CommandExecution {
     return command;
   }
 
-  /** Returns the execution status (RUNNING, SUCCESS, or ERROR). */
+  /** Returns the agent identifier. */
+  public String getAgentId() {
+    return agentId;
+  }
+
+  /** Returns the current status (RUNNING, COMPLETED, or FAILED). */
   public String getStatus() {
     return status;
   }
 
-  /** Returns the identifier of the agent that ran the command, or null. */
-  public String getAgentIdentifier() {
-    return agentIdentifier;
-  }
-
-  /** Returns the error message if status is ERROR, or null. */
-  public String getErrorMessage() {
-    return errorMessage;
-  }
-
-  /** Returns when this execution started. */
-  public OffsetDateTime getStartedAt() {
+  /** Returns the instant this execution started. */
+  public Instant getStartedAt() {
     return startedAt;
   }
 
-  /** Returns when this execution finished, or null if still running. */
-  public OffsetDateTime getFinishedAt() {
+  /** Returns the instant this execution finished, or null if still running. */
+  public Instant getFinishedAt() {
     return finishedAt;
   }
 
-  /** Returns the execution duration in milliseconds, or null. */
-  public Long getDurationMs() {
-    return durationMs;
+  /** Marks this execution as COMPLETED. */
+  public void complete() {
+    this.status = "COMPLETED";
+    this.finishedAt = Instant.now();
+  }
+
+  /** Marks this execution as FAILED. */
+  public void fail() {
+    this.status = "FAILED";
+    this.finishedAt = Instant.now();
   }
 }

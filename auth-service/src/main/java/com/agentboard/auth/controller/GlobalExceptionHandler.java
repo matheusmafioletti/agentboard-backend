@@ -34,6 +34,15 @@ public class GlobalExceptionHandler {
   }
 
   /**
+   * Maps password mismatch and other argument errors to HTTP 400.
+   */
+  @ExceptionHandler(IllegalArgumentException.class)
+  @ResponseStatus(HttpStatus.BAD_REQUEST)
+  public Map<String, Object> handleIllegalArgument(IllegalArgumentException ex) {
+    return errorBody("BAD_REQUEST", ex.getMessage());
+  }
+
+  /**
    * Maps bean validation failures to HTTP 400 with a summary of the first violation.
    */
   @ExceptionHandler(MethodArgumentNotValidException.class)

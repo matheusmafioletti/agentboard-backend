@@ -80,4 +80,9 @@ public class UserAccount {
   public OffsetDateTime getCreatedAt() {
     return createdAt;
   }
+
+  /** Replaces the stored password hash with a newly encoded value. */
+  public void updatePasswordHash(String newHash) {
+    this.passwordHash = newHash;
+  }
 }

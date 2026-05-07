@@ -4,6 +4,7 @@ import com.agentboard.auth.domain.Tenant;
 import com.agentboard.auth.domain.TenantApiKey;
 import com.agentboard.auth.domain.UserAccount;
 import com.agentboard.auth.dto.BoardInfo;
+import com.agentboard.auth.dto.ChangePasswordRequest;
 import com.agentboard.auth.dto.LoginRequest;
 import com.agentboard.auth.dto.LoginResponse;
 import com.agentboard.auth.dto.RegisterRequest;
@@ -93,7 +94,30 @@ public class AuthService {
     }
 
     String token = jwtTokenService.generate(user.getId(), user.getTenantId(), user.getRoles());
-    return new LoginResponse(token, user.getId(), user.getTenantId());
+    return new LoginResponse(token, user.getId(), user.getTenantId(), user.getEmail());
+  }
+
+  /**
+   * Changes the password for the user identified by {@code request.userId()}.
+   *
+   * @throws InvalidCredentialsException if the user is not found or currentPassword is wrong
+   * @throws IllegalArgumentException if newPassword and confirmNewPassword do not match
+   */
+  @Transactional
+  public void changePassword(ChangePasswordRequest request) {
+    if (!request.newPassword().equals(request.confirmNewPassword())) {
+      throw new IllegalArgumentException("newPassword and confirmNewPassword do not match");
+    }
+
+    UserAccount user = userAccountRepository.findById(request.userId())
+        .orElseThrow(InvalidCredentialsException::new);
+
+    if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
+      throw new InvalidCredentialsException();
+    }
+
+    user.updatePasswordHash(passwordEncoder.encode(request.newPassword()));
+    userAccountRepository.save(user);
   }
 
   private static String sha256Hex(String input) {

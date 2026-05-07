@@ -1,65 +1,62 @@
 package com.agentboard.board.service;
 
 import com.agentboard.board.domain.Artifact;
-import com.agentboard.board.domain.CommandExecution;
-import com.agentboard.board.dto.ArtifactResponse;
 import com.agentboard.board.repository.ArtifactRepository;
-import com.agentboard.board.repository.CommandExecutionRepository;
-import com.agentboard.board.repository.FeatureCardRepository;
-import com.agentboard.commons.exceptions.ResourceNotFoundException;
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Business logic for adding SpecKit artifacts to a Feature Card. */
+/**
+ * Business logic for Artifact persistence.
+ *
+ * <p>Artifacts are append-only — this service only supports creation and retrieval.
+ */
 @Service
-@Transactional
 public class ArtifactService {
 
   private final ArtifactRepository artifactRepository;
-  private final CommandExecutionRepository commandExecutionRepository;
-  private final FeatureCardRepository featureCardRepository;
-  private final BoardEventPublisher boardEventPublisher;
 
-  /** Creates the service with the required repositories and event publisher. */
-  public ArtifactService(
-      ArtifactRepository artifactRepository,
-      CommandExecutionRepository commandExecutionRepository,
-      FeatureCardRepository featureCardRepository,
-      BoardEventPublisher boardEventPublisher) {
+  /** Creates the service backed by the given repository. */
+  public ArtifactService(ArtifactRepository artifactRepository) {
     this.artifactRepository = artifactRepository;
-    this.commandExecutionRepository = commandExecutionRepository;
-    this.featureCardRepository = featureCardRepository;
-    this.boardEventPublisher = boardEventPublisher;
   }
 
   /**
-   * Appends an artifact to the feature card and records a command execution.
+   * Persists a new artifact for the given work item.
    *
-   * @throws ResourceNotFoundException if the feature card is not found for the tenant
+   * @param workItemId the owning work item
+   * @param command    the SpecKit command (e.g., "specify", "plan")
+   * @param content    the artifact text content
+   * @return the saved artifact
    */
-  public ArtifactResponse addArtifact(UUID tenantId, UUID featureCardId, String command,
-      String content, String agentIdentifier) {
-    featureCardRepository.findById(featureCardId)
-        .filter(c -> c.getTenantId().equals(tenantId))
-        .orElseThrow(
-            () -> new ResourceNotFoundException("FeatureCard not found: " + featureCardId));
-
-    Artifact artifact = artifactRepository.save(
-        new Artifact(tenantId, featureCardId, command, content, agentIdentifier));
-
-    commandExecutionRepository.save(
-        new CommandExecution(tenantId, featureCardId, command, agentIdentifier));
-
-    ArtifactResponse response = toResponse(artifact);
-    boardEventPublisher.publishArtifactAdded(tenantId, featureCardId, response);
-    return response;
+  @Transactional
+  public Artifact saveArtifact(UUID workItemId, String command, String content) {
+    Artifact artifact = new Artifact(workItemId, command, content);
+    return artifactRepository.save(artifact);
   }
 
-  private ArtifactResponse toResponse(Artifact artifact) {
-    return new ArtifactResponse(
-        artifact.getId(), artifact.getFeatureCardId(), artifact.getCommand(),
-        artifact.getContent(), artifact.getAgentIdentifier(),
-        artifact.getCreatedAt() != null ? artifact.getCreatedAt().toString() : null);
+  /**
+   * Returns all artifacts for a work item in chronological order.
+   *
+   * @param workItemId the owning work item
+   * @return ordered list of artifacts
+   */
+  @Transactional(readOnly = true)
+  public List<Artifact> listByWorkItem(UUID workItemId) {
+    return artifactRepository.findByWorkItemIdOrderByCreatedAtAsc(workItemId);
+  }
+
+  /**
+   * Returns the most recently created artifact for the given command, if any.
+   *
+   * @param workItemId the owning work item
+   * @param command    the SpecKit command
+   * @return the latest artifact for that command
+   */
+  @Transactional(readOnly = true)
+  public Optional<Artifact> getLatestByCommand(UUID workItemId, String command) {
+    return artifactRepository.findLatestByWorkItemIdAndCommand(workItemId, command);
   }
 }

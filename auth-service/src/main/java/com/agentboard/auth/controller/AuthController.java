@@ -1,13 +1,16 @@
 package com.agentboard.auth.controller;
 
+import com.agentboard.auth.dto.ChangePasswordRequest;
 import com.agentboard.auth.dto.LoginRequest;
 import com.agentboard.auth.dto.LoginResponse;
 import com.agentboard.auth.dto.RegisterRequest;
 import com.agentboard.auth.dto.RegisterResponse;
+import com.agentboard.auth.exception.InvalidCredentialsException;
 import com.agentboard.auth.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -42,5 +45,17 @@ public class AuthController {
   @PostMapping("/login")
   public LoginResponse login(@Valid @RequestBody LoginRequest request) {
     return authService.login(request);
+  }
+
+  /**
+   * Changes the password for the user identified in the request body.
+   *
+   * <p>Authentication is verified by matching the provided {@code currentPassword}
+   * against the stored hash. Returns {@code 204 No Content} on success.
+   */
+  @PutMapping("/change-password")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void changePassword(@Valid @RequestBody ChangePasswordRequest request) {
+    authService.changePassword(request);
   }
 }

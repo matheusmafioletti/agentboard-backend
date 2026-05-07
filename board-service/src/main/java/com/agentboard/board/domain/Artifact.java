@@ -7,14 +7,15 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
-import java.time.OffsetDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 /**
- * An immutable SpecKit artifact produced by an agent command (e.g., spec.md content).
+ * An immutable SpecKit artifact produced by an agent command.
  *
- * <p>IMPORTANT: Artifacts are append-only. No UPDATE operations are permitted on this entity
- * after creation.
+ * <p>IMPORTANT: Artifacts are append-only. No UPDATE or DELETE operations are permitted
+ * on this entity after creation. Multiple artifacts for the same (workItemId, command)
+ * pair are valid — they represent versioned history.
  */
 @Entity
 @Table(name = "artifact")
@@ -24,40 +25,37 @@ public class Artifact {
   @GeneratedValue(strategy = GenerationType.UUID)
   private UUID id;
 
-  @Column(name = "feature_card_id", nullable = false)
-  private UUID featureCardId;
+  @Column(name = "work_item_id", nullable = false)
+  private UUID workItemId;
 
-  @Column(name = "tenant_id", nullable = false)
-  private UUID tenantId;
-
-  @Column(nullable = false, length = 50)
+  @Column(nullable = false, length = 100)
   private String command;
 
   @Column(nullable = false, columnDefinition = "TEXT")
   private String content;
 
-  @Column(name = "agent_identifier", length = 255)
-  private String agentIdentifier;
-
   @Column(name = "created_at", nullable = false, updatable = false)
-  private OffsetDateTime createdAt;
+  private Instant createdAt;
 
   /** Required by JPA. */
   protected Artifact() {}
 
-  /** Creates a new artifact; all fields are immutable after construction. */
-  public Artifact(UUID tenantId, UUID featureCardId, String command, String content,
-      String agentIdentifier) {
-    this.tenantId = tenantId;
-    this.featureCardId = featureCardId;
+  /**
+   * Creates a new artifact. All fields are immutable after construction.
+   *
+   * @param workItemId the owning work item's identifier
+   * @param command    the SpecKit command that produced this artifact
+   * @param content    the full artifact text
+   */
+  public Artifact(UUID workItemId, String command, String content) {
+    this.workItemId = workItemId;
     this.command = command;
     this.content = content;
-    this.agentIdentifier = agentIdentifier;
   }
 
   @PrePersist
   void onCreate() {
-    this.createdAt = OffsetDateTime.now();
+    this.createdAt = Instant.now();
   }
 
   /** Returns this artifact's unique identifier. */
@@ -65,17 +63,12 @@ public class Artifact {
     return id;
   }
 
-  /** Returns the owning feature card's identifier. */
-  public UUID getFeatureCardId() {
-    return featureCardId;
+  /** Returns the owning work item's identifier. */
+  public UUID getWorkItemId() {
+    return workItemId;
   }
 
-  /** Returns the owning tenant's identifier. */
-  public UUID getTenantId() {
-    return tenantId;
-  }
-
-  /** Returns the SpecKit command that produced this artifact (e.g., "specify"). */
+  /** Returns the SpecKit command that produced this artifact. */
   public String getCommand() {
     return command;
   }
@@ -85,13 +78,8 @@ public class Artifact {
     return content;
   }
 
-  /** Returns the identifier of the agent that created this artifact, or null. */
-  public String getAgentIdentifier() {
-    return agentIdentifier;
-  }
-
-  /** Returns when this artifact was created. */
-  public OffsetDateTime getCreatedAt() {
+  /** Returns the instant this artifact was created. */
+  public Instant getCreatedAt() {
     return createdAt;
   }
 }

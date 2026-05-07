@@ -10,6 +10,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 /** Maps domain exceptions to HTTP error responses for board-service. */
 @RestControllerAdvice
@@ -34,6 +35,22 @@ public class GlobalExceptionHandler {
   @ResponseStatus(HttpStatus.CONFLICT)
   public Map<String, Object> handleConflict(IllegalStateException ex) {
     return errorBody("CONFLICT", ex.getMessage());
+  }
+
+  /**
+   * Maps {@link ResponseStatusException} to its embedded HTTP status and reason phrase.
+   *
+   * <p>Used by service-layer validation guards (e.g. invalid stage transitions).
+   */
+  @ExceptionHandler(ResponseStatusException.class)
+  public org.springframework.http.ResponseEntity<Map<String, Object>> handleResponseStatus(
+      ResponseStatusException ex) {
+    String code = ex.getStatusCode() == HttpStatus.BAD_REQUEST ? "INVALID_STAGE_TRANSITION"
+        : ex.getStatusCode() == HttpStatus.CONFLICT ? "CONFLICT"
+        : "ERROR";
+    return org.springframework.http.ResponseEntity
+        .status(ex.getStatusCode())
+        .body(errorBody(code, ex.getReason() != null ? ex.getReason() : ex.getMessage()));
   }
 
   /** Maps bean validation failures to HTTP 400. */
