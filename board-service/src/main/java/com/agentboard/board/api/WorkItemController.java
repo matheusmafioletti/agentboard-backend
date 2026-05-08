@@ -4,6 +4,7 @@ import com.agentboard.board.api.dto.BatchCreateRequest;
 import com.agentboard.board.api.dto.BatchCreateResponse;
 import com.agentboard.board.api.dto.CreateWorkItemRequest;
 import com.agentboard.board.api.dto.MoveStatusRequest;
+import com.agentboard.board.api.dto.ParentPreviewResponse;
 import com.agentboard.board.api.dto.PatchWorkItemRequest;
 import com.agentboard.board.api.dto.WorkItemDetailResponse;
 import com.agentboard.board.api.dto.WorkItemResponse;
@@ -22,7 +23,11 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -80,12 +85,35 @@ public class WorkItemController {
       @RequestParam(required = false) String type,
       @RequestParam(required = false) UUID parentId,
       @RequestParam(required = false) String status,
+      @RequestParam(required = false, defaultValue = "false") boolean includeParent,
+      @RequestParam(required = false) UUID assigneeId,
       @AuthenticationPrincipal ProjectPrincipal principal) {
     UUID tenantId = resolveTenantId(principal);
     WorkItemType typeEnum = type != null ? WorkItemType.valueOf(type) : null;
-    return workItemService.listWorkItems(tenantId, projectId, typeEnum, parentId, status)
-        .stream()
-        .map(WorkItemResponse::from)
+    List<WorkItem> rows =
+        workItemService.listWorkItems(tenantId, projectId, typeEnum, parentId, status, assigneeId);
+    if (!includeParent) {
+      return rows.stream().map(WorkItemResponse::from).toList();
+    }
+    var parentIds = rows.stream()
+        .map(WorkItem::getParentId)
+        .filter(Objects::nonNull)
+        .collect(Collectors.toSet());
+    Map<UUID, WorkItem> parentsById = Map.of();
+    if (!parentIds.isEmpty()) {
+      parentsById = workItemRepository.findAllByTenantIdAndIdIn(tenantId, parentIds).stream()
+          .collect(Collectors.toMap(WorkItem::getId, Function.identity()));
+    }
+    final Map<UUID, WorkItem> parentMap = parentsById;
+    return rows.stream()
+        .map(wi -> {
+          ParentPreviewResponse preview = null;
+          if (wi.getParentId() != null) {
+            WorkItem parent = parentMap.get(wi.getParentId());
+            preview = parent != null ? ParentPreviewResponse.fromWorkItem(parent) : null;
+          }
+          return WorkItemResponse.from(wi, preview);
+        })
         .toList();
   }
 
@@ -102,7 +130,8 @@ public class WorkItemController {
     WorkItem item = workItemService.createWorkItem(
         tenantId, resolvedProjectId, type,
         request.title(), request.description(),
-        request.parentId(), request.priority() > 0 ? request.priority() : 5);
+        request.parentId(), request.priority() > 0 ? request.priority() : 5,
+        request.assigneeId());
     return WorkItemResponse.from(item);
   }
 
@@ -121,7 +150,7 @@ public class WorkItemController {
         workItemService.createWorkItem(
             tenantId, resolvedProjectId, type,
             item.title(), item.description(),
-            request.parentId(), item.priority() > 0 ? item.priority() : 5)
+            request.parentId(), item.priority() > 0 ? item.priority() : 5, null)
     ).toList();
 
     String parentStatus = workItemRepository.findByIdAndTenantId(request.parentId(), tenantId)
@@ -140,22 +169,41 @@ public class WorkItemController {
       @AuthenticationPrincipal ProjectPrincipal principal) {
     UUID tenantId = resolveTenantId(principal);
     WorkItem item = workItemService.getWorkItemDetail(tenantId, id);
+    ParentPreviewResponse parentPreview = null;
+    if (item.getParentId() != null) {
+      parentPreview =
+          workItemRepository.findByIdAndTenantId(item.getParentId(), tenantId)
+              .map(ParentPreviewResponse::fromWorkItem).orElse(null);
+    }
     List<WorkItem> children = workItemRepository.findAllByParentId(id);
     List<Artifact> artifacts = artifactRepository.findByWorkItemIdOrderByCreatedAtAsc(id);
     List<CommandExecution> executions =
         commandExecutionRepository.findByWorkItemIdOrderByStartedAtDesc(id);
-    return WorkItemDetailResponse.from(item, children, artifacts, executions);
+    return WorkItemDetailResponse.from(item, children, artifacts, executions, parentPreview);
   }
 
-  /** Updates title and/or description of a work item. */
+  /** Updates title, description, and/or assignee of a work item. */
   @PatchMapping("/{id}")
   public WorkItemResponse patchWorkItem(
       @PathVariable UUID id,
       @Valid @RequestBody PatchWorkItemRequest request,
       @AuthenticationPrincipal ProjectPrincipal principal) {
     UUID tenantId = resolveTenantId(principal);
+    java.util.Optional<UUID> assigneeUpdate = resolveAssigneeUpdate(request.assignee());
     return WorkItemResponse.from(
-        workItemService.patchWorkItem(tenantId, id, request.title(), request.description()));
+        workItemService.patchWorkItem(tenantId, id, request.title(), request.description(),
+            assigneeUpdate));
+  }
+
+  private java.util.Optional<UUID> resolveAssigneeUpdate(
+      PatchWorkItemRequest.AssigneeUpdate assignee) {
+    if (assignee == null) {
+      return null;
+    }
+    if (assignee.clear()) {
+      return java.util.Optional.empty();
+    }
+    return java.util.Optional.ofNullable(assignee.id());
   }
 
   /** Moves a work item to a new status. */

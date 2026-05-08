@@ -1,6 +1,7 @@
 package com.agentboard.board.service;
 
 import com.agentboard.board.domain.WorkItem;
+import com.agentboard.board.domain.WorkItemDisplayKeys;
 import com.agentboard.board.event.WorkItemMovedEvent;
 import com.agentboard.board.repository.WorkItemRepository;
 import com.agentboard.commons.domain.FeatureStage;
@@ -48,19 +49,20 @@ public class WorkItemService {
   }
 
   /**
-   * Returns work items for a project, with optional type/parentId/status filters.
+   * Returns work items for a project, with optional type/parentId/status/assigneeId filters.
    *
-   * @param tenantId  the owning tenant
-   * @param projectId the owning project
-   * @param type      optional type filter
-   * @param parentId  optional parent filter
-   * @param status    optional status filter
+   * @param tenantId   the owning tenant
+   * @param projectId  the owning project
+   * @param type       optional type filter
+   * @param parentId   optional parent filter
+   * @param status     optional status filter
+   * @param assigneeId optional assignee filter
    * @return filtered list
    */
   @Transactional(readOnly = true)
   public List<WorkItem> listWorkItems(UUID tenantId, UUID projectId,
-      WorkItemType type, UUID parentId, String status) {
-    return workItemRepository.findFiltered(projectId, tenantId, type, parentId, status);
+      WorkItemType type, UUID parentId, String status, UUID assigneeId) {
+    return workItemRepository.findFiltered(projectId, tenantId, type, parentId, status, assigneeId);
   }
 
   /**
@@ -86,29 +88,35 @@ public class WorkItemService {
    * @param description optional description
    * @param parentId    null for FEATURE; required for USER_STORY and TASK
    * @param priority    item priority (defaults to 5)
+   * @param assigneeId  optional assignee user identifier
    * @return the persisted work item
    */
   @Transactional
   public WorkItem createWorkItem(UUID tenantId, UUID projectId, WorkItemType type,
-      String title, String description, UUID parentId, int priority) {
+      String title, String description, UUID parentId, int priority, UUID assigneeId) {
     validateParent(type, parentId, tenantId);
-    WorkItem item = new WorkItem(projectId, tenantId, type, title, description, parentId, priority);
+    int nextSeq = workItemRepository.findMaxDisplayKeySeq(projectId, tenantId, type.name()) + 1;
+    String displayKey = WorkItemDisplayKeys.format(type, nextSeq);
+    WorkItem item = new WorkItem(
+        projectId, tenantId, type, title, description, parentId, priority, displayKey, assigneeId);
     return workItemRepository.save(item);
   }
 
   /**
-   * Updates mutable fields (title and/or description) of a work item.
+   * Updates mutable fields (title, description, and/or assigneeId) of a work item.
    *
-   * @param tenantId   the owning tenant
-   * @param workItemId the work item to patch
-   * @param title      optional new title
-   * @param description optional new description
+   * @param tenantId      the owning tenant
+   * @param workItemId    the work item to patch
+   * @param title         optional new title
+   * @param description   optional new description
+   * @param newAssigneeId null = no change; empty Optional = unassign; Optional(id) = set assignee
    * @return the updated work item
    */
   @Transactional
-  public WorkItem patchWorkItem(UUID tenantId, UUID workItemId, String title, String description) {
+  public WorkItem patchWorkItem(UUID tenantId, UUID workItemId, String title, String description,
+      java.util.Optional<UUID> newAssigneeId) {
     WorkItem item = requireWorkItem(workItemId, tenantId);
-    item.patch(title, description);
+    item.patch(title, description, newAssigneeId);
     return workItemRepository.save(item);
   }
 

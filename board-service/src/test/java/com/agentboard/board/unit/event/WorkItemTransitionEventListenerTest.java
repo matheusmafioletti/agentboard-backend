@@ -119,7 +119,7 @@ class WorkItemTransitionEventListenerTest {
     WorkItem feature = stubFeature(parentFeatureId, tenantId, "SPECIFY");
     when(workItemRepository.findByIdAndTenantId(parentFeatureId, tenantId))
         .thenReturn(Optional.of(feature));
-    when(workItemRepository.countByParentIdAndStatusNot(parentFeatureId, eq("DONE")))
+    when(workItemRepository.countByParentIdAndStatusNot(eq(parentFeatureId), eq("DONE")))
         .thenReturn(0L);
 
     WorkItemMovedEvent event = new WorkItemMovedEvent(
@@ -133,7 +133,7 @@ class WorkItemTransitionEventListenerTest {
 
   private WorkItem stubFeature(UUID id, UUID tenantId, String status) {
     WorkItem item = new WorkItem(UUID.randomUUID(), tenantId, WorkItemType.FEATURE,
-        "Feature", null, null, 5);
+        "Feature", null, null, 5, "F1", null);
     item.transitionTo(status);
     return item;
   }

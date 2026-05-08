@@ -6,13 +6,13 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
+import org.hibernate.annotations.UuidGenerator;
 
 /**
  * Unified work item that replaces the separate Feature, UserStory, and Task entities.
@@ -32,7 +32,8 @@ import java.util.UUID;
 public class WorkItem {
 
   @Id
-  @GeneratedValue(strategy = GenerationType.UUID)
+  @GeneratedValue
+  @UuidGenerator
   private UUID id;
 
   @Column(name = "tenant_id", nullable = false)
@@ -69,11 +70,20 @@ public class WorkItem {
   @Column(name = "updated_at", nullable = false)
   private Instant updatedAt;
 
+  @Column(name = "display_key", nullable = false, length = 32)
+  private String displayKey;
+
+  @Column(name = "assignee_id")
+  private UUID assigneeId;
+
   /** Required by JPA. */
   protected WorkItem() {}
 
   /**
    * Creates a new WorkItem with the given parameters.
+   *
+   * <p>The caller (typically {@link com.agentboard.board.service.WorkItemService}) is responsible
+   * for providing a valid {@code displayKey} in the format {@code F/U/T + seq} before save.
    *
    * @param projectId   the owning project
    * @param tenantId    the owning tenant (denormalized for isolation queries)
@@ -82,9 +92,12 @@ public class WorkItem {
    * @param description optional description
    * @param parentId    null for FEATURE; required for USER_STORY and TASK
    * @param priority    positive integer; lower value = higher priority; defaults to 5
+   * @param displayKey  pre-allocated human display key (e.g. {@code F1}, {@code U12})
+   * @param assigneeId  optional user identifier from the same tenant
    */
   public WorkItem(UUID projectId, UUID tenantId, WorkItemType type,
-      String title, String description, UUID parentId, int priority) {
+      String title, String description, UUID parentId, int priority, String displayKey,
+      UUID assigneeId) {
     this.projectId = projectId;
     this.tenantId = tenantId;
     this.type = type;
@@ -94,6 +107,8 @@ public class WorkItem {
     this.priority = priority;
     this.displayOrder = 0;
     this.status = initialStatus(type);
+    this.displayKey = displayKey;
+    this.assigneeId = assigneeId;
   }
 
   @PrePersist
@@ -168,6 +183,16 @@ public class WorkItem {
     return updatedAt;
   }
 
+  /** Returns the short human-stable display token. */
+  public String getDisplayKey() {
+    return displayKey;
+  }
+
+  /** Returns the optional assignee user identifier, or null if unassigned. */
+  public UUID getAssigneeId() {
+    return assigneeId;
+  }
+
   /**
    * Transitions this item to the given status.
    *
@@ -181,17 +206,25 @@ public class WorkItem {
   }
 
   /**
-   * Updates mutable text fields; null values leave the field unchanged.
+   * Updates mutable fields; null values leave the field unchanged.
+   *
+   * <p>Pass {@link java.util.Optional#empty()} as {@code newAssigneeId} to clear the assignee.
+   * Pass {@code null} to leave the current assignee unchanged.
    *
    * @param newTitle       optional new title
    * @param newDescription optional new description
+   * @param newAssigneeId  optional new assignee; {@code null} = no change, empty Optional = clear
    */
-  public void patch(String newTitle, String newDescription) {
+  public void patch(String newTitle, String newDescription,
+      java.util.Optional<UUID> newAssigneeId) {
     if (newTitle != null) {
       this.title = newTitle;
     }
     if (newDescription != null) {
       this.description = newDescription;
+    }
+    if (newAssigneeId != null) {
+      this.assigneeId = newAssigneeId.orElse(null);
     }
   }
 

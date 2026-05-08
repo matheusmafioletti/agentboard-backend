@@ -20,14 +20,22 @@ public record WorkItemDetailResponse(
     int displayOrder,
     String createdAt,
     String updatedAt,
+    String displayKey,
+    ParentPreviewResponse parentPreview,
+    UUID assigneeId,
     List<WorkItemResponse> children,
     List<ArtifactDto> artifacts,
     List<CommandExecutionDto> commandExecutions
 ) {
 
-  /** Creates a full detail response from the entity plus its nested collections. */
+  /**
+   * Creates a full detail response from the entity plus nested collections.
+   *
+   * @param parentPreview optional hydrated parent silhouette for hierarchical UI
+   */
   public static WorkItemDetailResponse from(WorkItem wi, List<WorkItem> children,
-      List<Artifact> artifacts, List<CommandExecution> executions) {
+      List<Artifact> artifacts, List<CommandExecution> executions,
+      ParentPreviewResponse parentPreview) {
     return new WorkItemDetailResponse(
         wi.getId(),
         wi.getProjectId(),
@@ -41,10 +49,12 @@ public record WorkItemDetailResponse(
         wi.getDisplayOrder(),
         wi.getCreatedAt().toString(),
         wi.getUpdatedAt().toString(),
+        wi.getDisplayKey(),
+        parentPreview,
+        wi.getAssigneeId(),
         children.stream().map(WorkItemResponse::from).toList(),
         artifacts.stream().map(ArtifactDto::from).toList(),
-        executions.stream().map(CommandExecutionDto::from).toList()
-    );
+        executions.stream().map(CommandExecutionDto::from).toList());
   }
 
   /** Embedded DTO for an artifact entry. */

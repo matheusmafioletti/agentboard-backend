@@ -16,11 +16,24 @@ public record WorkItemResponse(
     int priority,
     int displayOrder,
     String createdAt,
-    String updatedAt
+    String updatedAt,
+    String displayKey,
+    ParentPreviewResponse parentPreview,
+    UUID assigneeId
 ) {
 
-  /** Creates a summary response from the given entity. */
+  /** Creates a summary response from the entity without optional parent hydrate. */
   public static WorkItemResponse from(WorkItem wi) {
+    return from(wi, null);
+  }
+
+  /**
+   * Creates a summary response optionally carrying a parent silhouette.
+   *
+   * @param wi            persisted item
+   * @param parentPreview optional parent summary (must be {@code null} for FEATURE roots)
+   */
+  public static WorkItemResponse from(WorkItem wi, ParentPreviewResponse parentPreview) {
     return new WorkItemResponse(
         wi.getId(),
         wi.getProjectId(),
@@ -33,7 +46,9 @@ public record WorkItemResponse(
         wi.getPriority(),
         wi.getDisplayOrder(),
         wi.getCreatedAt().toString(),
-        wi.getUpdatedAt().toString()
-    );
+        wi.getUpdatedAt().toString(),
+        wi.getDisplayKey(),
+        parentPreview,
+        wi.getAssigneeId());
   }
 }

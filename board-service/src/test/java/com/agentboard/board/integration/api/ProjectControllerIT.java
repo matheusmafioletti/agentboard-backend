@@ -9,8 +9,11 @@ import com.agentboard.board.integration.AbstractIntegrationTest;
 import io.restassured.http.ContentType;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.annotation.DirtiesContext.ClassMode;
 
 /** Integration tests for Project CRUD endpoints. */
+@DirtiesContext(classMode = ClassMode.BEFORE_CLASS)
 class ProjectControllerIT extends AbstractIntegrationTest {
 
   @Test

@@ -1,5 +1,7 @@
 package com.agentboard.board.integration;
 
+import com.agentboard.board.domain.Project;
+import com.agentboard.board.repository.ProjectRepository;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import io.restassured.RestAssured;
@@ -7,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -39,6 +42,9 @@ public abstract class AbstractIntegrationTest {
   @Value("${jwt.secret}")
   String jwtSecret;
 
+  @Autowired
+  ProjectRepository projectRepository;
+
   @DynamicPropertySource
   static void configureProperties(DynamicPropertyRegistry registry) {
     registry.add("spring.datasource.url", postgres::getJdbcUrl);
@@ -49,6 +55,24 @@ public abstract class AbstractIntegrationTest {
   @BeforeEach
   void configureRestAssured() {
     RestAssured.port = port;
+  }
+
+  /**
+   * Persists a Project row for isolated integration tests ({@code POST /api/v1/projects} relies on the
+   * same HTTP/security stack exercised by assertions; persisting avoids duplicate bootstrapping when
+   * multiple IT classes share one Spring context).
+   *
+   * @param tenantId owning tenant
+   * @return persisted project id
+   */
+  protected UUID createProject(UUID tenantId) {
+    UUID suffix = UUID.randomUUID();
+    Project project = new Project(
+        tenantId,
+        "Integration Project " + suffix,
+        null,
+        "agb_it_" + suffix.toString().replace("-", ""));
+    return projectRepository.save(project).getId();
   }
 
   /**

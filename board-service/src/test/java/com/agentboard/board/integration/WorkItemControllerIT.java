@@ -4,6 +4,8 @@ import static io.restassured.RestAssured.given;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.matchesPattern;
+import static org.hamcrest.Matchers.notNullValue;
 
 import io.restassured.http.ContentType;
 import java.util.Map;
@@ -23,7 +25,7 @@ class WorkItemControllerIT extends AbstractIntegrationTest {
     UUID userId = UUID.randomUUID();
     String jwt = buildJwt(tenantId, userId);
 
-    UUID projectId = createProject(tenantId, jwt);
+    UUID projectId = createProject(tenantId);
 
     given()
         .header("Authorization", "Bearer " + jwt)
@@ -41,7 +43,7 @@ class WorkItemControllerIT extends AbstractIntegrationTest {
     UUID tenantId = UUID.randomUUID();
     UUID userId = UUID.randomUUID();
     String jwt = buildJwt(tenantId, userId);
-    UUID projectId = createProject(tenantId, jwt);
+    UUID projectId = createProject(tenantId);
 
     given()
         .header("Authorization", "Bearer " + jwt)
@@ -54,7 +56,8 @@ class WorkItemControllerIT extends AbstractIntegrationTest {
         .statusCode(201)
         .body("type", equalTo("FEATURE"))
         .body("status", equalTo("BACKLOG"))
-        .body("title", equalTo("My Feature"));
+        .body("title", equalTo("My Feature"))
+        .body("displayKey", matchesPattern("F[1-9][0-9]*"));
   }
 
   @Test
@@ -62,7 +65,7 @@ class WorkItemControllerIT extends AbstractIntegrationTest {
     UUID tenantId = UUID.randomUUID();
     UUID userId = UUID.randomUUID();
     String jwt = buildJwt(tenantId, userId);
-    UUID projectId = createProject(tenantId, jwt);
+    UUID projectId = createProject(tenantId);
 
     String featureId = given()
         .header("Authorization", "Bearer " + jwt)
@@ -94,7 +97,7 @@ class WorkItemControllerIT extends AbstractIntegrationTest {
     UUID tenantId = UUID.randomUUID();
     UUID userId = UUID.randomUUID();
     String jwt = buildJwt(tenantId, userId);
-    UUID projectId = createProject(tenantId, jwt);
+    UUID projectId = createProject(tenantId);
 
     String featureId = given()
         .header("Authorization", "Bearer " + jwt)
@@ -124,7 +127,7 @@ class WorkItemControllerIT extends AbstractIntegrationTest {
     UUID tenantId = UUID.randomUUID();
     UUID userId = UUID.randomUUID();
     String jwt = buildJwt(tenantId, userId);
-    UUID projectId = createProject(tenantId, jwt);
+    UUID projectId = createProject(tenantId);
 
     String featureId = given()
         .header("Authorization", "Bearer " + jwt)
@@ -153,7 +156,7 @@ class WorkItemControllerIT extends AbstractIntegrationTest {
     UUID tenantId = UUID.randomUUID();
     UUID userId = UUID.randomUUID();
     String jwt = buildJwt(tenantId, userId);
-    UUID projectId = createProject(tenantId, jwt);
+    UUID projectId = createProject(tenantId);
 
     String featureId = given()
         .header("Authorization", "Bearer " + jwt)
@@ -173,7 +176,8 @@ class WorkItemControllerIT extends AbstractIntegrationTest {
         .then()
         .statusCode(200)
         .body("id", equalTo(featureId))
-        .body("type", equalTo("FEATURE"));
+        .body("type", equalTo("FEATURE"))
+        .body("displayKey", matchesPattern("F[1-9][0-9]*"));
   }
 
   @Test
@@ -181,7 +185,7 @@ class WorkItemControllerIT extends AbstractIntegrationTest {
     UUID tenantId = UUID.randomUUID();
     UUID userId = UUID.randomUUID();
     String jwt = buildJwt(tenantId, userId);
-    UUID projectId = createProject(tenantId, jwt);
+    UUID projectId = createProject(tenantId);
 
     String featureId = given()
         .header("Authorization", "Bearer " + jwt)
@@ -223,7 +227,7 @@ class WorkItemControllerIT extends AbstractIntegrationTest {
     UUID tenantId = UUID.randomUUID();
     UUID userId = UUID.randomUUID();
     String jwt = buildJwt(tenantId, userId);
-    UUID projectId = createProject(tenantId, jwt);
+    UUID projectId = createProject(tenantId);
 
     String featureId = given()
         .header("Authorization", "Bearer " + jwt)
@@ -289,7 +293,7 @@ class WorkItemControllerIT extends AbstractIntegrationTest {
     UUID tenantId = UUID.randomUUID();
     UUID userId = UUID.randomUUID();
     String jwt = buildJwt(tenantId, userId);
-    UUID projectId = createProject(tenantId, jwt);
+    UUID projectId = createProject(tenantId);
 
     String featureId = given()
         .header("Authorization", "Bearer " + jwt)
@@ -328,7 +332,7 @@ class WorkItemControllerIT extends AbstractIntegrationTest {
     UUID tenantId = UUID.randomUUID();
     UUID userId = UUID.randomUUID();
     String jwt = buildJwt(tenantId, userId);
-    UUID projectId = createProject(tenantId, jwt);
+    UUID projectId = createProject(tenantId);
 
     String markdown =
         """
@@ -372,16 +376,48 @@ class WorkItemControllerIT extends AbstractIntegrationTest {
         .body("description", equalTo(markdown));
   }
 
-  private UUID createProject(UUID tenantId, String jwt) {
-    String id = given()
+  @Test
+  void listWorkItems_withIncludeParent_returnsParentPreview() {
+    UUID tenantId = UUID.randomUUID();
+    UUID userId = UUID.randomUUID();
+    String jwt = buildJwt(tenantId, userId);
+    UUID projectId = createProject(tenantId);
+
+    String featureId =
+        given()
+            .header("Authorization", "Bearer " + jwt)
+            .contentType(ContentType.JSON)
+            .queryParam("projectId", projectId)
+            .body(Map.of("type", "FEATURE", "title", "Feat", "priority", 5))
+            .when()
+            .post("/api/v1/work-items")
+            .then()
+            .statusCode(201)
+            .extract()
+            .path("id");
+
+    given()
         .header("Authorization", "Bearer " + jwt)
         .contentType(ContentType.JSON)
-        .body(Map.of("name", "Test Project " + UUID.randomUUID(), "apiKeyLabel", "default"))
+        .queryParam("projectId", projectId)
+        .body(Map.of("type", "USER_STORY", "title", "US", "parentId", featureId, "priority", 1))
         .when()
-        .post("/api/v1/projects")
+        .post("/api/v1/work-items")
         .then()
-        .statusCode(201)
-        .extract().path("id");
-    return UUID.fromString(id);
+        .statusCode(201);
+
+    given()
+        .header("Authorization", "Bearer " + jwt)
+        .queryParam("projectId", projectId)
+        .queryParam("type", "USER_STORY")
+        .queryParam("parentId", featureId)
+        .queryParam("includeParent", true)
+        .when()
+        .get("/api/v1/work-items")
+        .then()
+        .statusCode(200)
+        .body("$", hasSize(1))
+        .body("[0].parentPreview.id", equalTo(featureId))
+        .body("[0].parentPreview.displayKey", notNullValue());
   }
 }

@@ -12,5 +12,6 @@ public record CreateWorkItemRequest(
     @NotBlank @Size(max = 255) String title,
     @Size(max = 10000) String description,
     UUID parentId,
-    @Positive int priority
+    @Positive int priority,
+    UUID assigneeId
 ) {}
