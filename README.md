@@ -1,6 +1,6 @@
 # agentboard-backend
 
-AgentBoard backend — Gradle multi-project containing four Spring Boot 3.2 microservices.
+AgentBoard backend — Gradle multi-project containing three Spring Boot 3.2 microservices.
 
 ![CI](https://github.com/agentboard/agentboard-backend/actions/workflows/ci.yml/badge.svg)
 
@@ -20,8 +20,7 @@ AgentBoard backend — Gradle multi-project containing four Spring Boot 3.2 micr
 |---|---|---|
 | `commons` | — | Shared security, multitenancy, and exception types |
 | `auth-service` | 8080 | Authentication and JWT issuance |
-| `board-service` | 8081 | Kanban board state machine and card management |
-| `agent-service` | 8082 | Agent task polling and execution coordination |
+| `board-service` | 8081 | Kanban board state machine, work items, and MCP HTTP API |
 
 ## Setup
 
@@ -55,6 +54,5 @@ cd agentboard-backend
 agentboard-backend/
 ├── commons/            # Shared library (no Spring Boot plugin)
 ├── auth-service/       # Spring Boot app, port 8080
-├── board-service/      # Spring Boot app, port 8081
-└── agent-service/      # Spring Boot app, port 8082
+└── board-service/      # Spring Boot app, port 8081
 ```
