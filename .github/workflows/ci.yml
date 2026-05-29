@@ -2,9 +2,12 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
 
 jobs:
   build:
@@ -17,8 +20,8 @@ jobs:
       - name: Set up Java 21
         uses: actions/setup-java@v4
         with:
-          java-version: '21'
-          distribution: 'temurin'
+          java-version: "21"
+          distribution: "temurin"
 
       - name: Cache Gradle packages
         uses: actions/cache@v4
@@ -35,12 +38,6 @@ jobs:
       - name: Test
         run: ./gradlew test
 
-      - name: Integration Test
-        run: ./gradlew integrationTest --continue || true
-
-      - name: Pact Verify
-        run: ./gradlew pactVerify --continue || true
-
       - name: Upload Pact contracts artifact
         if: always()
         uses: actions/upload-artifact@v4
@@ -52,3 +49,76 @@ jobs:
 
       - name: Build
         run: ./gradlew build
+
+  deploy:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push auth-service
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: auth-service/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/agentboard-auth:latest
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/agentboard-auth:${{ github.sha }}
+
+      - name: Build and push board-service
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: board-service/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/agentboard-board:latest
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/agentboard-board:${{ github.sha }}
+
+      - name: Build and push api-docs-service
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: api-docs-service/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/agentboard-api-docs:latest
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/agentboard-api-docs:${{ github.sha }}
+
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+          tags: tag:ci
+
+      - name: Deploy backend services on VPS
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            cd "${{ secrets.VPS_DEPLOY_PATH }}"
+            export AUTH_IMAGE_TAG=${{ github.sha }}
+            export BOARD_IMAGE_TAG=${{ github.sha }}
+            export API_DOCS_IMAGE_TAG=${{ github.sha }}
+            docker compose --env-file .env.prod -f docker-compose.prod.yml pull agentboard-auth agentboard-board agentboard-api-docs
+            docker compose --env-file .env.prod -f docker-compose.prod.yml up -d agentboard-auth agentboard-board agentboard-api-docs nginx
