@@ -2,8 +2,6 @@ package com.agentboard.auth.unit.service;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -42,8 +40,12 @@ class AuthServiceChangePasswordTest {
   @BeforeEach
   void setUp() {
     authService = new AuthService(
-        tenantRepository, userAccountRepository, tenantApiKeyRepository,
-        jwtTokenService, passwordEncoder, boardServiceClient);
+        tenantRepository,
+        userAccountRepository,
+        tenantApiKeyRepository,
+        jwtTokenService,
+        passwordEncoder,
+        boardServiceClient);
   }
 
   @Test
@@ -82,13 +84,8 @@ class AuthServiceChangePasswordTest {
   @Test
   void changePassword_passwordMismatch_throwsIllegalArgumentException() {
     UUID userId = UUID.randomUUID();
-    UUID tenantId = UUID.randomUUID();
-    UserAccount user = new UserAccount(tenantId, "user@example.com", "hashedOld");
     ChangePasswordRequest request = new ChangePasswordRequest(
         userId, "currentPass", "newPass123", "differentPass");
-
-    when(userAccountRepository.findById(userId)).thenReturn(Optional.of(user));
-    when(passwordEncoder.matches(eq("currentPass"), anyString())).thenReturn(true);
 
     assertThrows(IllegalArgumentException.class, () -> authService.changePassword(request));
     verify(userAccountRepository, never()).save(any());

@@ -9,6 +9,8 @@ import com.agentboard.auth.dto.BoardInfo;
 import com.agentboard.auth.service.BoardServiceClient;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
+import java.util.Map;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -19,9 +21,6 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-
-import java.util.Map;
-import java.util.UUID;
 
 /** Integration tests for PUT /auth/change-password. */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -42,6 +41,7 @@ class AuthControllerChangePasswordIT {
   BoardServiceClient boardServiceClient;
 
   private String registeredUserId;
+  private String registeredEmail;
 
   @DynamicPropertySource
   static void configureProperties(DynamicPropertyRegistry registry) {
@@ -57,16 +57,17 @@ class AuthControllerChangePasswordIT {
     when(boardServiceClient.createBoard(any(UUID.class), anyString()))
         .thenReturn(new BoardInfo(UUID.randomUUID(), "Test Board"));
 
+    registeredEmail = "changepwd-" + UUID.randomUUID() + "@example.com";
     Map<?, ?> response = given()
         .contentType(ContentType.JSON)
-        .body("""
+        .body(String.format("""
             {
               "name": "Change Pwd User",
-              "email": "changepwd@example.com",
+              "email": "%s",
               "password": "originalPass1",
-              "tenantName": "Change Pwd Corp"
+              "tenantName": "Change Pwd Corp %s"
             }
-            """)
+            """, registeredEmail, UUID.randomUUID().toString().substring(0, 8)))
         .post("/auth/register")
         .then()
         .statusCode(201)
@@ -146,12 +147,12 @@ class AuthControllerChangePasswordIT {
 
     given()
         .contentType(ContentType.JSON)
-        .body("""
+        .body(String.format("""
             {
-              "email": "changepwd@example.com",
+              "email": "%s",
               "password": "newSecurePass2"
             }
-            """)
+            """, registeredEmail))
     .when()
         .post("/auth/login")
     .then()
