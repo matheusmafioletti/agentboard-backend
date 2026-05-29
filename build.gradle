@@ -8,6 +8,10 @@ plugins {
 group = 'com.agentboard'
 version = '0.0.1-SNAPSHOT'
 
+ext {
+    springdocVersion = '2.5.0'
+}
+
 subprojects {
     apply plugin: 'java'
     apply plugin: 'checkstyle'

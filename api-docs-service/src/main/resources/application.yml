@@ -1,0 +1,21 @@
+server:
+  port: 8082
+
+agentboard:
+  openapi:
+    upstream:
+      auth-service: ${AUTH_SERVICE_OPENAPI_URL:http://localhost:8080/v3/api-docs}
+      board-service: ${BOARD_SERVICE_OPENAPI_URL:http://localhost:8081/v3/api-docs}
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+    disable-swagger-default-url: true
+    urls:
+      - name: Auth Service
+        url: /openapi/auth-service
+      - name: Board Service
+        url: /openapi/board-service
+    urls-primary-name: Board Service
