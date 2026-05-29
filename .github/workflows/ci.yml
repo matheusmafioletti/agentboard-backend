@@ -17,6 +17,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Grant execute permission for Gradle wrapper
+        run: chmod +x gradlew
+
       - name: Set up Java 21
         uses: actions/setup-java@v4
         with:
@@ -61,6 +64,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Grant execute permission for Gradle wrapper
+        run: chmod +x gradlew
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
