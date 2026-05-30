@@ -118,12 +118,12 @@ jobs:
       - name: Deploy backend services on VPS
         uses: appleboy/ssh-action@v1.2.0
         with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
+          host: ${{ vars.VPS_HOST }}
+          username: ${{ vars.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             set -euo pipefail
-            cd "${{ secrets.VPS_DEPLOY_PATH }}"
+            cd "${{ vars.VPS_DEPLOY_PATH }}"
             export AUTH_IMAGE_TAG=${{ github.sha }}
             export BOARD_IMAGE_TAG=${{ github.sha }}
             export API_DOCS_IMAGE_TAG=${{ github.sha }}
