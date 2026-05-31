@@ -1,12 +1,6 @@
 package com.agentboard.auth.integration.api;
 
 import static io.restassured.RestAssured.given;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.when;
-
-import com.agentboard.auth.dto.BoardInfo;
-import com.agentboard.auth.service.BoardServiceClient;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
 import java.util.Map;
@@ -14,49 +8,30 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
+import com.agentboard.auth.integration.AbstractAuthIntegrationTest;
 
 /** Integration tests for PUT /auth/change-password. */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Testcontainers
-class AuthControllerChangePasswordIT {
-
-  @Container
-  static final PostgreSQLContainer<?> postgres =
-      new PostgreSQLContainer<>("postgres:16")
-          .withDatabaseName("agentboard")
-          .withUsername("agentboard")
-          .withPassword("agentboard");
+class AuthControllerChangePasswordIT extends AbstractAuthIntegrationTest {
 
   @LocalServerPort
   int port;
-
-  @MockBean
-  BoardServiceClient boardServiceClient;
 
   private String registeredUserId;
   private String registeredEmail;
 
   @DynamicPropertySource
   static void configureProperties(DynamicPropertyRegistry registry) {
-    registry.add("spring.datasource.url", postgres::getJdbcUrl);
-    registry.add("spring.datasource.username", postgres::getUsername);
-    registry.add("spring.datasource.password", postgres::getPassword);
-    registry.add("board-service.url", () -> "http://localhost:9999");
+    registerDatasource(registry);
+    registry.add("app.invite-base-url", () -> "http://localhost:5173");
   }
 
   @BeforeEach
   void setUp() {
     RestAssured.port = port;
-    when(boardServiceClient.createBoard(any(UUID.class), anyString()))
-        .thenReturn(new BoardInfo(UUID.randomUUID(), "Test Board"));
-
     registeredEmail = "changepwd-" + UUID.randomUUID() + "@example.com";
     Map<?, ?> response = given()
         .contentType(ContentType.JSON)

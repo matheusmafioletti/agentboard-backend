@@ -12,9 +12,9 @@ import com.agentboard.auth.exception.InvalidCredentialsException;
 import com.agentboard.auth.repository.TenantApiKeyRepository;
 import com.agentboard.auth.repository.TenantRepository;
 import com.agentboard.auth.repository.UserAccountRepository;
-import com.agentboard.auth.security.JwtTokenService;
 import com.agentboard.auth.service.AuthService;
-import com.agentboard.auth.service.BoardServiceClient;
+import com.agentboard.auth.service.MembershipService;
+import com.agentboard.auth.service.SessionFactory;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,9 +31,9 @@ class AuthServiceChangePasswordTest {
   @Mock private TenantRepository tenantRepository;
   @Mock private UserAccountRepository userAccountRepository;
   @Mock private TenantApiKeyRepository tenantApiKeyRepository;
-  @Mock private JwtTokenService jwtTokenService;
   @Mock private PasswordEncoder passwordEncoder;
-  @Mock private BoardServiceClient boardServiceClient;
+  @Mock private MembershipService membershipService;
+  @Mock private SessionFactory sessionFactory;
 
   private AuthService authService;
 
@@ -43,16 +43,15 @@ class AuthServiceChangePasswordTest {
         tenantRepository,
         userAccountRepository,
         tenantApiKeyRepository,
-        jwtTokenService,
         passwordEncoder,
-        boardServiceClient);
+        membershipService,
+        sessionFactory);
   }
 
   @Test
   void changePassword_correctCurrentPassword_updatesHash() {
     UUID userId = UUID.randomUUID();
-    UUID tenantId = UUID.randomUUID();
-    UserAccount user = new UserAccount(tenantId, "user@example.com", "hashedOld");
+    UserAccount user = new UserAccount("Test User", "user@example.com", "hashedOld");
     ChangePasswordRequest request = new ChangePasswordRequest(
         userId, "currentPass", "newPass123", "newPass123");
 
@@ -69,8 +68,7 @@ class AuthServiceChangePasswordTest {
   @Test
   void changePassword_wrongCurrentPassword_throwsInvalidCredentials() {
     UUID userId = UUID.randomUUID();
-    UUID tenantId = UUID.randomUUID();
-    UserAccount user = new UserAccount(tenantId, "user@example.com", "hashedOld");
+    UserAccount user = new UserAccount("Test User", "user@example.com", "hashedOld");
     ChangePasswordRequest request = new ChangePasswordRequest(
         userId, "wrongPass", "newPass123", "newPass123");
 
