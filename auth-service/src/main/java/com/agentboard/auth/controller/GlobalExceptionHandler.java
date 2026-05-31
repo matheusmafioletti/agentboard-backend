@@ -1,7 +1,15 @@
 package com.agentboard.auth.controller;
 
+import com.agentboard.auth.exception.AlreadyMemberException;
 import com.agentboard.auth.exception.DuplicateEmailException;
+import com.agentboard.auth.exception.DuplicatePendingInviteException;
+import com.agentboard.auth.exception.DuplicateTenantNameException;
+import com.agentboard.auth.exception.ForbiddenOperationException;
 import com.agentboard.auth.exception.InvalidCredentialsException;
+import com.agentboard.auth.exception.InviteGoneException;
+import com.agentboard.auth.exception.LastAdminException;
+import com.agentboard.auth.exception.NoMembershipException;
+import com.agentboard.auth.exception.NotMemberException;
 import java.time.OffsetDateTime;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
@@ -15,36 +23,67 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-  /**
-   * Maps {@link DuplicateEmailException} to HTTP 409.
-   */
+  /** Maps {@link DuplicateEmailException} to HTTP 409. */
   @ExceptionHandler(DuplicateEmailException.class)
   @ResponseStatus(HttpStatus.CONFLICT)
   public Map<String, Object> handleDuplicateEmail(DuplicateEmailException ex) {
     return errorBody("EMAIL_ALREADY_REGISTERED", ex.getMessage());
   }
 
-  /**
-   * Maps {@link InvalidCredentialsException} to HTTP 401.
-   */
+  /** Maps {@link DuplicateTenantNameException} to HTTP 409. */
+  @ExceptionHandler(DuplicateTenantNameException.class)
+  @ResponseStatus(HttpStatus.CONFLICT)
+  public Map<String, Object> handleDuplicateTenant(DuplicateTenantNameException ex) {
+    return errorBody("TENANT_NAME_TAKEN", ex.getMessage());
+  }
+
+  /** Maps {@link DuplicatePendingInviteException} to HTTP 409. */
+  @ExceptionHandler({DuplicatePendingInviteException.class, AlreadyMemberException.class})
+  @ResponseStatus(HttpStatus.CONFLICT)
+  public Map<String, Object> handleInviteConflict(RuntimeException ex) {
+    return errorBody("CONFLICT", ex.getMessage());
+  }
+
+  /** Maps {@link LastAdminException} to HTTP 409. */
+  @ExceptionHandler(LastAdminException.class)
+  @ResponseStatus(HttpStatus.CONFLICT)
+  public Map<String, Object> handleLastAdmin(LastAdminException ex) {
+    return errorBody("LAST_ADMIN", ex.getMessage());
+  }
+
+  /** Maps {@link InvalidCredentialsException} to HTTP 401. */
   @ExceptionHandler(InvalidCredentialsException.class)
   @ResponseStatus(HttpStatus.UNAUTHORIZED)
   public Map<String, Object> handleInvalidCredentials(InvalidCredentialsException ex) {
     return errorBody("INVALID_CREDENTIALS", ex.getMessage());
   }
 
-  /**
-   * Maps password mismatch and other argument errors to HTTP 400.
-   */
+  /** Maps membership and permission errors to HTTP 403. */
+  @ExceptionHandler({
+      NoMembershipException.class,
+      NotMemberException.class,
+      ForbiddenOperationException.class
+  })
+  @ResponseStatus(HttpStatus.FORBIDDEN)
+  public Map<String, Object> handleForbidden(RuntimeException ex) {
+    return errorBody("FORBIDDEN", ex.getMessage());
+  }
+
+  /** Maps expired or invalid invites to HTTP 410. */
+  @ExceptionHandler(InviteGoneException.class)
+  @ResponseStatus(HttpStatus.GONE)
+  public Map<String, Object> handleInviteGone(InviteGoneException ex) {
+    return errorBody("INVITE_GONE", ex.getMessage());
+  }
+
+  /** Maps password mismatch and other argument errors to HTTP 400. */
   @ExceptionHandler(IllegalArgumentException.class)
   @ResponseStatus(HttpStatus.BAD_REQUEST)
   public Map<String, Object> handleIllegalArgument(IllegalArgumentException ex) {
     return errorBody("BAD_REQUEST", ex.getMessage());
   }
 
-  /**
-   * Maps bean validation failures to HTTP 400 with a summary of the first violation.
-   */
+  /** Maps bean validation failures to HTTP 400 with a summary of the first violation. */
   @ExceptionHandler(MethodArgumentNotValidException.class)
   @ResponseStatus(HttpStatus.BAD_REQUEST)
   public Map<String, Object> handleValidation(MethodArgumentNotValidException ex) {

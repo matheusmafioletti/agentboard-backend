@@ -1,9 +1,13 @@
 package com.agentboard.board.api;
 
+import com.agentboard.board.config.OpenApiConfig;
 import com.agentboard.board.domain.Project;
 import com.agentboard.board.security.ProjectPrincipal;
 import com.agentboard.board.service.ProjectService;
 import com.agentboard.commons.security.TenantContext;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -29,6 +33,10 @@ import org.springframework.web.bind.annotation.RestController;
  *   <li>{@code GET /api/v1/projects/me} — returns the project associated with the API key</li>
  * </ul>
  */
+@Tag(name = "Projects")
+@SecurityRequirement(name = OpenApiConfig.BEARER_JWT)
+@SecurityRequirement(name = OpenApiConfig.TENANT_API_KEY)
+@SecurityRequirement(name = OpenApiConfig.PROJECT_API_KEY)
 @RestController
 @RequestMapping("/api/v1/projects")
 public class ProjectController {
@@ -41,6 +49,7 @@ public class ProjectController {
   }
 
   /** Creates a new project for the currently authenticated tenant. */
+  @Operation(summary = "Create a project")
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   public ProjectResponse createProject(@Valid @RequestBody CreateProjectRequest request) {
@@ -51,6 +60,7 @@ public class ProjectController {
   }
 
   /** Lists all projects belonging to the authenticated tenant. */
+  @Operation(summary = "List projects for the authenticated tenant")
   @GetMapping
   public List<ProjectResponse> listProjects() {
     UUID tenantId = TenantContext.get();
@@ -60,6 +70,7 @@ public class ProjectController {
   }
 
   /** Returns a single project by ID, scoped to the authenticated tenant. */
+  @Operation(summary = "Get a project by ID")
   @GetMapping("/{id}")
   public ProjectResponse getProject(@PathVariable UUID id) {
     UUID tenantId = TenantContext.get();
@@ -68,6 +79,7 @@ public class ProjectController {
   }
 
   /** Updates the name and/or constitution of an existing project. */
+  @Operation(summary = "Update a project")
   @PutMapping("/{id}")
   public ProjectResponse updateProject(
       @PathVariable UUID id,
@@ -84,6 +96,7 @@ public class ProjectController {
    * <p>This endpoint is only accessible to callers authenticated with a project API key
    * ({@code Authorization: Bearer agb_...}). Used by the {@code get_constitution} MCP tool.
    */
+  @Operation(summary = "Get the project associated with the project API key")
   @GetMapping("/me")
   public ProjectResponse getMyProject(
       @AuthenticationPrincipal ProjectPrincipal principal) {

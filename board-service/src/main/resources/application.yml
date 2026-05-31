@@ -24,3 +24,13 @@ websocket:
 
 server:
   port: 8081
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: false
+  paths-to-exclude: /internal/**,/ws/**
+
+openapi:
+  server-url: ${OPENAPI_BOARD_SERVER_URL:http://localhost:8081}

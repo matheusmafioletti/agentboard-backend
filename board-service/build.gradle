@@ -12,6 +12,7 @@ dependencies {
     implementation 'io.jsonwebtoken:jjwt-impl:0.12.6'
     implementation 'io.jsonwebtoken:jjwt-jackson:0.12.6'
     implementation 'org.flywaydb:flyway-core'
+    implementation "org.springdoc:springdoc-openapi-starter-webmvc-api:${rootProject.ext.springdocVersion}"
     runtimeOnly 'org.postgresql:postgresql'
     testImplementation 'org.testcontainers:postgresql'
     testImplementation 'org.testcontainers:junit-jupiter'

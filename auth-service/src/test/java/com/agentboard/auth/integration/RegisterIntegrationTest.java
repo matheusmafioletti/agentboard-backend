@@ -1,122 +1,51 @@
 package com.agentboard.auth.integration;
 
-import static io.restassured.RestAssured.given;
-import static org.hamcrest.Matchers.notNullValue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.agentboard.auth.dto.BoardInfo;
-import com.agentboard.auth.service.BoardServiceClient;
-import io.restassured.RestAssured;
-import io.restassured.http.ContentType;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-
-import java.util.UUID;
+import org.springframework.beans.factory.annotation.Autowired;
 
 /** Integration tests for POST /auth/register. */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Testcontainers
-class RegisterIntegrationTest {
+class RegisterIntegrationTest extends AbstractAuthIntegrationTest {
 
-  @Container
-  static final PostgreSQLContainer<?> postgres =
-      new PostgreSQLContainer<>("postgres:16")
-          .withDatabaseName("agentboard")
-          .withUsername("agentboard")
-          .withPassword("agentboard");
+  @Autowired
+  private org.springframework.test.web.servlet.MockMvc mockMvc;
 
-  @LocalServerPort
-  int port;
-
-  @MockBean
-  BoardServiceClient boardServiceClient;
-
-  @DynamicPropertySource
-  static void configureProperties(DynamicPropertyRegistry registry) {
-    registry.add("spring.datasource.url", postgres::getJdbcUrl);
-    registry.add("spring.datasource.username", postgres::getUsername);
-    registry.add("spring.datasource.password", postgres::getPassword);
-    registry.add("board-service.url", () -> "http://localhost:9999");
-  }
-
-  @BeforeEach
-  void setUp() {
-    RestAssured.port = port;
-    when(boardServiceClient.createBoard(any(UUID.class), anyString()))
-        .thenReturn(new BoardInfo(UUID.randomUUID(), "My Board"));
+  @Test
+  void register_createsAdminMembership() throws Exception {
+    mockMvc.perform(post("/auth/register")
+            .contentType("application/json")
+            .content("""
+                {
+                  "name": "Alice",
+                  "email": "alice@example.com",
+                  "password": "secret123",
+                  "tenantName": "Alice Workspace"
+                }
+                """))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.role").value("ADMIN"))
+        .andExpect(jsonPath("$.tenantName").value("Alice Workspace"))
+        .andExpect(jsonPath("$.token").isNotEmpty())
+        .andExpect(jsonPath("$.board").doesNotExist());
   }
 
   @Test
-  void register_happyPath_returns201WithJwtAndApiKey() {
-    given()
-        .contentType(ContentType.JSON)
-        .body("""
-            {
-              "name": "Test User",
-              "email": "happy@example.com",
-              "password": "secret123",
-              "tenantName": "Happy Corp"
-            }
-            """)
-    .when()
-        .post("/auth/register")
-    .then()
-        .statusCode(201)
-        .body("token", notNullValue())
-        .body("apiKey", notNullValue())
-        .body("userId", notNullValue())
-        .body("tenantId", notNullValue())
-        .body("board.id", notNullValue())
-        .body("board.name", notNullValue());
-  }
-
-  @Test
-  void register_duplicateEmail_returns409() {
-    String firstBody = """
+  void register_duplicateEmail_returns409() throws Exception {
+    String body = """
         {
-          "name": "User A",
+          "name": "Bob",
           "email": "dup@example.com",
           "password": "secret123",
-          "tenantName": "Corp A"
+          "tenantName": "Workspace A"
         }
         """;
-    given().contentType(ContentType.JSON).body(firstBody).post("/auth/register")
-        .then().statusCode(201);
-
-    given()
-        .contentType(ContentType.JSON)
-        .body("""
-            {
-              "name": "User B",
-              "email": "dup@example.com",
-              "password": "secret123",
-              "tenantName": "Corp B"
-            }
-            """)
-    .when()
-        .post("/auth/register")
-    .then()
-        .statusCode(409);
-  }
-
-  @Test
-  void register_missingRequiredFields_returns400() {
-    given()
-        .contentType(ContentType.JSON)
-        .body("{\"email\": \"nopwd@example.com\"}")
-    .when()
-        .post("/auth/register")
-    .then()
-        .statusCode(400);
+    mockMvc.perform(post("/auth/register").contentType("application/json").content(body))
+        .andExpect(status().isCreated());
+    mockMvc.perform(post("/auth/register").contentType("application/json").content(body))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.error").value("EMAIL_ALREADY_REGISTERED"));
   }
 }

@@ -8,6 +8,7 @@ import com.agentboard.board.api.dto.ParentPreviewResponse;
 import com.agentboard.board.api.dto.PatchWorkItemRequest;
 import com.agentboard.board.api.dto.WorkItemDetailResponse;
 import com.agentboard.board.api.dto.WorkItemResponse;
+import com.agentboard.board.config.OpenApiConfig;
 import com.agentboard.board.domain.Artifact;
 import com.agentboard.board.domain.CommandExecution;
 import com.agentboard.board.domain.WorkItem;
@@ -19,6 +20,9 @@ import com.agentboard.board.service.ArtifactService;
 import com.agentboard.board.service.WorkItemService;
 import com.agentboard.commons.domain.WorkItemType;
 import com.agentboard.commons.security.TenantContext;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -57,6 +61,10 @@ import org.springframework.web.server.ResponseStatusException;
  * <p>Supports project API key auth ({@link ProjectPrincipal}) and browser JWT auth
  * (principal is null; tenantId from {@link TenantContext}; projectId from query param or record).
  */
+@Tag(name = "Work Items")
+@SecurityRequirement(name = OpenApiConfig.BEARER_JWT)
+@SecurityRequirement(name = OpenApiConfig.TENANT_API_KEY)
+@SecurityRequirement(name = OpenApiConfig.PROJECT_API_KEY)
 @RestController
 @RequestMapping("/api/v1/work-items")
 public class WorkItemController {
@@ -79,6 +87,7 @@ public class WorkItemController {
   }
 
   /** Lists work items for a project with optional filters. */
+  @Operation(summary = "List work items with optional filters")
   @GetMapping
   public List<WorkItemResponse> listWorkItems(
       @RequestParam UUID projectId,
@@ -118,6 +127,7 @@ public class WorkItemController {
   }
 
   /** Creates a single work item. */
+  @Operation(summary = "Create a work item")
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   public WorkItemResponse createWorkItem(
@@ -136,6 +146,7 @@ public class WorkItemController {
   }
 
   /** Creates multiple work items of the same type in one request. */
+  @Operation(summary = "Batch create work items of one type")
   @PostMapping("/batch")
   @ResponseStatus(HttpStatus.CREATED)
   public BatchCreateResponse batchCreateWorkItems(
@@ -163,6 +174,7 @@ public class WorkItemController {
   }
 
   /** Returns a single work item with full detail. */
+  @Operation(summary = "Get work item detail")
   @GetMapping("/{id}")
   public WorkItemDetailResponse getWorkItem(
       @PathVariable UUID id,
@@ -183,6 +195,7 @@ public class WorkItemController {
   }
 
   /** Updates title, description, and/or assignee of a work item. */
+  @Operation(summary = "Patch work item fields")
   @PatchMapping("/{id}")
   public WorkItemResponse patchWorkItem(
       @PathVariable UUID id,
@@ -207,6 +220,7 @@ public class WorkItemController {
   }
 
   /** Moves a work item to a new status. */
+  @Operation(summary = "Move work item to a new status")
   @PatchMapping("/{id}/status")
   public WorkItemResponse moveStatus(
       @PathVariable UUID id,
@@ -217,6 +231,7 @@ public class WorkItemController {
   }
 
   /** Appends an artifact to a work item. */
+  @Operation(summary = "Add an artifact to a work item")
   @PostMapping("/{id}/artifacts")
   @ResponseStatus(HttpStatus.CREATED)
   public ArtifactResponse addArtifact(

@@ -21,9 +21,6 @@ public class TenantUser {
   @Id
   private UUID id;
 
-  @Column(name = "tenant_id", nullable = false)
-  private UUID tenantId;
-
   @Column(nullable = false)
   private String email;
 
@@ -33,11 +30,6 @@ public class TenantUser {
   /** Returns the user's unique identifier. */
   public UUID getId() {
     return id;
-  }
-
-  /** Returns the tenant this user belongs to. */
-  public UUID getTenantId() {
-    return tenantId;
   }
 
   /** Returns the user's email address. */

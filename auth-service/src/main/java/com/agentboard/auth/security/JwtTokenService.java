@@ -3,6 +3,7 @@ package com.agentboard.auth.security;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import java.nio.charset.StandardCharsets;
+import com.agentboard.auth.domain.MembershipRole;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
@@ -47,5 +48,12 @@ public class JwtTokenService {
         .expiration(new Date(System.currentTimeMillis() + expirationMs))
         .signWith(secretKey)
         .compact();
+  }
+
+  /**
+   * Generates a JWT scoped to the given tenant with a single membership role.
+   */
+  public String generate(UUID userId, UUID tenantId, MembershipRole role) {
+    return generate(userId, tenantId, List.of(role.name()));
   }
 }

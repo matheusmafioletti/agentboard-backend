@@ -7,12 +7,9 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
-import java.util.List;
 import java.util.UUID;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
-/** A registered user belonging to a single tenant. */
+/** Global user identity (email + credentials), independent of any tenant. */
 @Entity
 @Table(name = "user_account")
 public class UserAccount {
@@ -21,8 +18,8 @@ public class UserAccount {
   @GeneratedValue(strategy = GenerationType.UUID)
   private UUID id;
 
-  @Column(name = "tenant_id", nullable = false)
-  private UUID tenantId;
+  @Column(nullable = false, length = 255)
+  private String name;
 
   @Column(nullable = false, unique = true, length = 255)
   private String email;
@@ -30,24 +27,17 @@ public class UserAccount {
   @Column(name = "password_hash", nullable = false, length = 255)
   private String passwordHash;
 
-  @Column(nullable = false, columnDefinition = "varchar(50)[]")
-  @JdbcTypeCode(SqlTypes.ARRAY)
-  private String[] roles = {"USER"};
-
   @Column(name = "created_at", nullable = false, updatable = false)
   private OffsetDateTime createdAt;
 
   /** Required by JPA. */
   protected UserAccount() {}
 
-  /**
-   * Creates a new user account with the given credentials and tenant association.
-   */
-  public UserAccount(UUID tenantId, String email, String passwordHash) {
-    this.tenantId = tenantId;
+  /** Creates a new global user account. */
+  public UserAccount(String name, String email, String passwordHash) {
+    this.name = name;
     this.email = email;
     this.passwordHash = passwordHash;
-    this.roles = new String[]{"USER"};
     this.createdAt = OffsetDateTime.now();
   }
 
@@ -56,9 +46,9 @@ public class UserAccount {
     return id;
   }
 
-  /** Returns the tenant this user belongs to. */
-  public UUID getTenantId() {
-    return tenantId;
+  /** Returns the user's display name. */
+  public String getName() {
+    return name;
   }
 
   /** Returns the user's email address. */
@@ -69,11 +59,6 @@ public class UserAccount {
   /** Returns the BCrypt-hashed password. */
   public String getPasswordHash() {
     return passwordHash;
-  }
-
-  /** Returns the roles assigned to this user. */
-  public List<String> getRoles() {
-    return roles == null ? List.of() : List.of(roles);
   }
 
   /** Returns the instant this account was created. */
