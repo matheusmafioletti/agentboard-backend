@@ -10,7 +10,7 @@ RUN chmod +x gradlew && ./gradlew :board-service:bootJar -x test -x checkstyleMa
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 RUN addgroup -S app && adduser -S app -G app
+COPY --from=builder --chown=app:app /workspace/board-service/build/libs/board-service.jar app.jar
 USER app
-COPY --from=builder /workspace/board-service/build/libs/*-SNAPSHOT.jar app.jar
 EXPOSE 8081
 ENTRYPOINT ["java", "-jar", "app.jar"]

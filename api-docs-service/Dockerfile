@@ -9,7 +9,7 @@ RUN chmod +x gradlew && ./gradlew :api-docs-service:bootJar -x test -x checkstyl
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 RUN addgroup -S app && adduser -S app -G app
+COPY --from=builder --chown=app:app /workspace/api-docs-service/build/libs/api-docs-service.jar app.jar
 USER app
-COPY --from=builder /workspace/api-docs-service/build/libs/*-SNAPSHOT.jar app.jar
 EXPOSE 8082
 ENTRYPOINT ["java", "-jar", "app.jar"]
