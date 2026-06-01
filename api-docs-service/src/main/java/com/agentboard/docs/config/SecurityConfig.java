@@ -22,7 +22,7 @@ public class SecurityConfig {
             .requestMatchers(
                 "/swagger-ui/**",
                 "/swagger-ui.html",
-                "/openapi/**",
+                "/api/openapi/**",
                 "/v3/api-docs/**",
                 "/webjars/**"
             ).permitAll()

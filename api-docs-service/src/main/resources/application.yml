@@ -15,7 +15,7 @@ springdoc:
     disable-swagger-default-url: true
     urls:
       - name: Auth Service
-        url: /openapi/auth-service
+        url: /api/openapi/auth-service
       - name: Board Service
-        url: /openapi/board-service
+        url: /api/openapi/board-service
     urls-primary-name: Board Service

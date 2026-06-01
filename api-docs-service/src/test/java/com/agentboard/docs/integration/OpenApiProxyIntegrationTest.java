@@ -72,14 +72,14 @@ class OpenApiProxyIntegrationTest {
 
   @Test
   void proxyAuthService_returnsUpstreamSpec() throws Exception {
-    mockMvc.perform(get("/openapi/auth-service"))
+    mockMvc.perform(get("/api/openapi/auth-service"))
         .andExpect(status().isOk())
         .andExpect(content().string(containsString("/auth/login")));
   }
 
   @Test
   void proxyBoardService_returnsUpstreamSpec() throws Exception {
-    mockMvc.perform(get("/openapi/board-service"))
+    mockMvc.perform(get("/api/openapi/board-service"))
         .andExpect(status().isOk())
         .andExpect(content().string(containsString("/api/v1/work-items")));
   }

@@ -32,7 +32,7 @@ public class OpenApiProxyController {
    *
    * @param service upstream key such as {@code auth-service} or {@code board-service}
    */
-  @GetMapping(value = "/openapi/{service}", produces = MediaType.APPLICATION_JSON_VALUE)
+  @GetMapping(value = "/api/openapi/{service}", produces = MediaType.APPLICATION_JSON_VALUE)
   public ResponseEntity<String> proxyOpenApi(@PathVariable String service) {
     String upstreamUrl = resolveUpstreamUrl(service);
     try {

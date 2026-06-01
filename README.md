@@ -27,7 +27,7 @@ AgentBoard backend — Gradle multi-project containing four Spring Boot 3.2 micr
 
 Unified Swagger UI (always available when the service is running):
 
-**http://localhost:8082/swagger-ui.html**
+**http://localhost:8082/swagger-ui/index.html** (production: `https://agentboard.matheusmafioletti.com/api/swagger`)
 
 Start order: PostgreSQL → `auth-service` → `board-service` → `api-docs-service`.
 
