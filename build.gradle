@@ -1,6 +1,8 @@
 plugins {
     id 'java'
     id 'checkstyle'
+    id 'jacoco'
+    id 'com.github.spotbugs' version '6.0.26' apply false
     id 'org.springframework.boot' version '3.2.5' apply false
     id 'io.spring.dependency-management' version '1.1.5' apply false
 }
@@ -8,13 +10,30 @@ plugins {
 group = 'com.agentboard'
 version = '0.0.1-SNAPSHOT'
 
+repositories {
+    mavenCentral()
+}
+
+jacoco {
+    toolVersion = '0.8.12'
+}
+
 ext {
     springdocVersion = '2.5.0'
+    jacocoExcludes = [
+        '**/dto/**',
+        '**/config/**',
+        '**/*Application.class',
+        '**/generated/**'
+    ]
+    jacocoCoverageMinimum = 0.70
 }
 
 subprojects {
     apply plugin: 'java'
     apply plugin: 'checkstyle'
+    apply plugin: 'jacoco'
+    apply plugin: 'com.github.spotbugs'
     apply plugin: 'io.spring.dependency-management'
 
     java {
@@ -35,6 +54,23 @@ subprojects {
         ignoreFailures = false
     }
 
+    spotbugs {
+        toolVersion = '4.8.6'
+        ignoreFailures = false
+        excludeFilter = rootProject.file('config/spotbugs/exclude.xml')
+    }
+
+    tasks.withType(com.github.spotbugs.snom.SpotBugsTask).configureEach {
+        reports {
+            html.required = true
+            xml.required = true
+        }
+    }
+
+    tasks.named('spotbugsTest') {
+        enabled = false
+    }
+
     repositories {
         mavenCentral()
     }
@@ -45,7 +81,71 @@ subprojects {
         testImplementation 'org.junit.jupiter:junit-jupiter'
     }
 
+    jacoco {
+        toolVersion = '0.8.12'
+    }
+
+    def jacocoClassDirectories = {
+        files(sourceSets.main.output.classesDirs.collect {
+            fileTree(dir: it, exclude: rootProject.ext.jacocoExcludes)
+        })
+    }
+
+    jacocoTestReport {
+        dependsOn test
+        reports {
+            xml.required = true
+            html.required = true
+        }
+        afterEvaluate {
+            classDirectories.setFrom(jacocoClassDirectories())
+        }
+    }
+
+    jacocoTestCoverageVerification {
+        dependsOn test
+        violationRules {
+            rule {
+                limit {
+                    minimum = rootProject.ext.jacocoCoverageMinimum
+                }
+            }
+        }
+        afterEvaluate {
+            classDirectories.setFrom(jacocoClassDirectories())
+        }
+    }
+
     test {
         useJUnitPlatform()
+        finalizedBy jacocoTestReport
+    }
+}
+
+tasks.register('jacocoCoverageCheck') {
+    group = 'verification'
+    description = 'Enforces minimum JaCoCo coverage (${jacocoCoverageMinimum * 100}%) per subproject.'
+    dependsOn subprojects.collect { it.tasks.named('jacocoTestCoverageVerification') }
+}
+
+tasks.register('jacocoRootReport', JacocoReport) {
+    dependsOn subprojects.collect { it.tasks.named('jacocoTestReport') }
+
+    additionalSourceDirs.setFrom(subprojects.sourceSets.main.allSource.srcDirs)
+    sourceDirectories.setFrom(subprojects.sourceSets.main.allSource.srcDirs)
+    classDirectories.setFrom(subprojects.collect { sub ->
+        sub.sourceSets.main.output.classesDirs.collect {
+            fileTree(dir: it, exclude: rootProject.ext.jacocoExcludes)
+        }
+    })
+    executionData.setFrom(subprojects.collect { sub ->
+        sub.tasks.named('jacocoTestReport').get().executionData
+    })
+
+    reports {
+        xml.required = true
+        xml.outputLocation = layout.buildDirectory.file('reports/jacoco/root/jacoco.xml')
+        html.required = true
+        html.outputLocation = layout.buildDirectory.dir('reports/jacoco/root/html')
     }
 }

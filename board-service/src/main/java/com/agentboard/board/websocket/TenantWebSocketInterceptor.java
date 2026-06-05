@@ -48,7 +48,10 @@ public class TenantWebSocketInterceptor implements ChannelInterceptor {
     String token = authHeader.substring("Bearer ".length());
     try {
       ParsedToken parsed = jwtValidator.validate(token);
-      accessor.getSessionAttributes().put("tenantId", parsed.tenantId());
+      var sessionAttributes = accessor.getSessionAttributes();
+      if (sessionAttributes != null) {
+        sessionAttributes.put("tenantId", parsed.tenantId());
+      }
     } catch (InvalidTokenException e) {
       throw new MessageDeliveryException(
           message, "WebSocket authentication failed: " + e.getMessage());

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter
+    xmlns="https://github.com/spotbugs/filter/3.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="https://github.com/spotbugs/filter/3.0.0 https://raw.githubusercontent.com/spotbugs/spotbugs/4.8.6/spotbugs/etc/findbugsfilter.xsd">
+
+  <!-- JPA entities: fields are populated by the persistence provider. -->
+  <Match>
+    <Class name="~.*\.domain\..*"/>
+    <Bug pattern="UWF_UNWRITTEN_FIELD,URF_UNREAD_FIELD,CT_CONSTRUCTOR_THROW"/>
+  </Match>
+
+  <!-- DTOs, API payloads, and immutable records. -->
+  <Match>
+    <Class name="~.*\.dto\..*"/>
+  </Match>
+  <Match>
+    <Class name="~.*\.api\.dto\..*"/>
+  </Match>
+
+  <!-- Spring Boot application entry points. -->
+  <Match>
+    <Class name="~.*Application$"/>
+  </Match>
+
+  <!-- Spring configuration and @ConfigurationProperties beans. -->
+  <Match>
+    <Class name="~.*\.config\..*"/>
+  </Match>
+
+  <!-- Spring layers store injected collaborators by design. -->
+  <Match>
+    <Class name="~.*\.(controller|web|api|websocket|service)\..*"/>
+    <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+  </Match>
+
+  <!-- JWT helpers and token value objects in commons. -->
+  <Match>
+    <Class name="~com\.agentboard\.commons\.security\..*"/>
+    <Bug pattern="CT_CONSTRUCTOR_THROW,EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+  </Match>
+
+  <Match>
+    <Class name="~com\.agentboard\.auth\.security\..*"/>
+    <Bug pattern="CT_CONSTRUCTOR_THROW"/>
+  </Match>
+
+</FindBugsFilter>

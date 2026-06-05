@@ -39,8 +39,20 @@ jobs:
       - name: Checkstyle (lint)
         run: ./gradlew checkstyleMain
 
+      - name: SpotBugs
+        run: ./gradlew spotbugsMain
+
       - name: Test
-        run: ./gradlew test
+        run: ./gradlew test jacocoRootReport
+
+      - name: Upload JaCoCo report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report
+          path: |
+            **/build/reports/jacoco/**
+          if-no-files-found: ignore
 
       - name: Upload Pact contracts artifact
         if: always()

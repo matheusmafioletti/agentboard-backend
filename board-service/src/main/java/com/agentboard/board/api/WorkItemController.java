@@ -202,7 +202,9 @@ public class WorkItemController {
       @Valid @RequestBody PatchWorkItemRequest request,
       @AuthenticationPrincipal ProjectPrincipal principal) {
     UUID tenantId = resolveTenantId(principal);
-    java.util.Optional<UUID> assigneeUpdate = resolveAssigneeUpdate(request.assignee());
+    java.util.Optional<UUID> assigneeUpdate = request.assignee() == null
+        ? null
+        : resolveAssigneeUpdate(request.assignee());
     return WorkItemResponse.from(
         workItemService.patchWorkItem(tenantId, id, request.title(), request.description(),
             assigneeUpdate));
@@ -210,9 +212,6 @@ public class WorkItemController {
 
   private java.util.Optional<UUID> resolveAssigneeUpdate(
       PatchWorkItemRequest.AssigneeUpdate assignee) {
-    if (assignee == null) {
-      return null;
-    }
     if (assignee.clear()) {
       return java.util.Optional.empty();
     }
