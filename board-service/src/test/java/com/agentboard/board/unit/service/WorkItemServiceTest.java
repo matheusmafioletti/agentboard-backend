@@ -20,12 +20,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.web.server.ResponseStatusException;
 
-/**
- * Unit tests for {@link WorkItemService}.
- *
- * <p>Covers: hierarchy validation, invalid parent type rejection, valid/invalid status values
- * per type, auto-only stage rejection for FEATURE.
- */
 @ExtendWith(MockitoExtension.class)
 class WorkItemServiceTest {
 
@@ -43,21 +37,21 @@ class WorkItemServiceTest {
   }
 
   @Test
-  void displayKeyFormat_usesTypePrefixAndSequentialInteger() {
+  void shouldFormatDisplayKeyWithTypePrefixAndSequence_whenFormatCalled() {
     assertThat(WorkItemDisplayKeys.format(WorkItemType.FEATURE, 1)).isEqualTo("F1");
     assertThat(WorkItemDisplayKeys.format(WorkItemType.USER_STORY, 102)).isEqualTo("U102");
     assertThat(WorkItemDisplayKeys.format(WorkItemType.TASK, 1023)).isEqualTo("T1023");
   }
 
   @Test
-  void displayKeyPrefix_returnsCorrectCharPerType() {
+  void shouldReturnCorrectPrefixPerType_whenPrefixCalled() {
     assertThat(WorkItemDisplayKeys.prefix(WorkItemType.FEATURE)).isEqualTo("F");
     assertThat(WorkItemDisplayKeys.prefix(WorkItemType.USER_STORY)).isEqualTo("U");
     assertThat(WorkItemDisplayKeys.prefix(WorkItemType.TASK)).isEqualTo("T");
   }
 
   @Test
-  void createFeature_withNullParent_succeeds() {
+  void shouldCreateFeature_whenParentIdIsNull() {
     UUID projectId = UUID.randomUUID();
     UUID tenantId = UUID.randomUUID();
     WorkItem saved = new WorkItem(projectId, tenantId, WorkItemType.FEATURE, "Auth", null, null, 5, "F1", null);
@@ -74,7 +68,7 @@ class WorkItemServiceTest {
   }
 
   @Test
-  void createFeature_withParentId_throwsBadRequest() {
+  void shouldThrowBadRequest_whenCreateFeatureWithParentId() {
     UUID projectId = UUID.randomUUID();
     UUID tenantId = UUID.randomUUID();
     UUID forbiddenParentId = UUID.randomUUID();
@@ -87,7 +81,7 @@ class WorkItemServiceTest {
   }
 
   @Test
-  void createUserStory_withFeatureParent_succeeds() {
+  void shouldCreateUserStory_whenParentIsFeature() {
     UUID projectId = UUID.randomUUID();
     UUID tenantId = UUID.randomUUID();
     UUID featureId = UUID.randomUUID();
@@ -109,7 +103,7 @@ class WorkItemServiceTest {
   }
 
   @Test
-  void createUserStory_withUserStoryParent_throwsInvalidParentType() {
+  void shouldThrowInvalidParentType_whenCreateUserStoryWithUserStoryParent() {
     UUID projectId = UUID.randomUUID();
     UUID tenantId = UUID.randomUUID();
     UUID usParentId = UUID.randomUUID();
@@ -127,7 +121,7 @@ class WorkItemServiceTest {
   }
 
   @Test
-  void createTask_withUserStoryParent_succeeds() {
+  void shouldCreateTask_whenParentIsUserStory() {
     UUID projectId = UUID.randomUUID();
     UUID tenantId = UUID.randomUUID();
     UUID usId = UUID.randomUUID();
@@ -149,7 +143,7 @@ class WorkItemServiceTest {
   }
 
   @Test
-  void createTask_withFeatureParent_throwsInvalidParentType() {
+  void shouldThrowInvalidParentType_whenCreateTaskWithFeatureParent() {
     UUID projectId = UUID.randomUUID();
     UUID tenantId = UUID.randomUUID();
     UUID featureParentId = UUID.randomUUID();
@@ -167,7 +161,7 @@ class WorkItemServiceTest {
   }
 
   @Test
-  void moveStatus_featureToManualStage_succeeds() {
+  void shouldMoveFeatureStatus_whenTargetIsManualStage() {
     UUID tenantId = UUID.randomUUID();
     UUID workItemId = UUID.randomUUID();
     WorkItem feature = new WorkItem(UUID.randomUUID(), tenantId, WorkItemType.FEATURE,
@@ -183,7 +177,7 @@ class WorkItemServiceTest {
   }
 
   @Test
-  void moveStatus_featureToInDevelopment_throwsAutoOnly() {
+  void shouldThrowAutoOnly_whenMoveFeatureToInDevelopment() {
     UUID tenantId = UUID.randomUUID();
     UUID workItemId = UUID.randomUUID();
     WorkItem feature = new WorkItem(UUID.randomUUID(), tenantId, WorkItemType.FEATURE,
@@ -198,7 +192,7 @@ class WorkItemServiceTest {
   }
 
   @Test
-  void moveStatus_featureToPrReview_throwsAutoOnly() {
+  void shouldThrowAutoOnly_whenMoveFeatureToPrReview() {
     UUID tenantId = UUID.randomUUID();
     UUID workItemId = UUID.randomUUID();
     WorkItem feature = new WorkItem(UUID.randomUUID(), tenantId, WorkItemType.FEATURE,
@@ -213,7 +207,7 @@ class WorkItemServiceTest {
   }
 
   @Test
-  void moveStatus_featureWithInvalidStatus_throwsBadRequest() {
+  void shouldThrowBadRequest_whenMoveFeatureWithInvalidStatus() {
     UUID tenantId = UUID.randomUUID();
     UUID workItemId = UUID.randomUUID();
     WorkItem feature = new WorkItem(UUID.randomUUID(), tenantId, WorkItemType.FEATURE,
@@ -227,7 +221,7 @@ class WorkItemServiceTest {
   }
 
   @Test
-  void moveStatus_userStoryToDone_throwsAutoOnly() {
+  void shouldThrowAutoOnly_whenMoveUserStoryToDone() {
     UUID tenantId = UUID.randomUUID();
     UUID workItemId = UUID.randomUUID();
     WorkItem us = new WorkItem(UUID.randomUUID(), tenantId, WorkItemType.USER_STORY,
@@ -242,7 +236,7 @@ class WorkItemServiceTest {
   }
 
   @Test
-  void moveStatus_taskToAnyStatus_succeeds() {
+  void shouldMoveTaskToAnyStatus_whenStatusIsValid() {
     UUID tenantId = UUID.randomUUID();
     UUID workItemId = UUID.randomUUID();
     WorkItem task = new WorkItem(UUID.randomUUID(), tenantId, WorkItemType.TASK,

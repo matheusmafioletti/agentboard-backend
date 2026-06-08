@@ -15,9 +15,9 @@ import com.agentboard.board.websocket.BoardEventPublisher;
 import com.agentboard.commons.domain.WorkItemType;
 import java.util.Optional;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -33,11 +33,15 @@ class WorkItemTransitionEventListenerTest {
   @Mock
   private BoardEventPublisher eventPublisher;
 
-  @InjectMocks
   private WorkItemTransitionEventListener listener;
 
+  @BeforeEach
+  void setUp() {
+    listener = new WorkItemTransitionEventListener(workItemService, workItemRepository, eventPublisher);
+  }
+
   @Test
-  void taskClosed_allSiblingsClosed_autoTransitionsParentUserStoryToDone() {
+  void shouldAutoTransitionParentUserStoryToDone_whenAllSiblingTasksClosed() {
     UUID tenantId = UUID.randomUUID();
     UUID projectId = UUID.randomUUID();
     UUID parentUsId = UUID.randomUUID();
@@ -54,7 +58,7 @@ class WorkItemTransitionEventListenerTest {
   }
 
   @Test
-  void taskClosed_otherTasksStillOpen_noAutoTransition() {
+  void shouldNotAutoTransition_whenOtherTasksStillOpen() {
     UUID tenantId = UUID.randomUUID();
     UUID projectId = UUID.randomUUID();
     UUID parentUsId = UUID.randomUUID();
@@ -70,7 +74,7 @@ class WorkItemTransitionEventListenerTest {
   }
 
   @Test
-  void userStoryInProgress_firstUs_autoTransitionsParentFeatureToInDevelopment() {
+  void shouldAutoTransitionFeatureToInDevelopment_whenFirstUserStoryMovesToInProgress() {
     UUID tenantId = UUID.randomUUID();
     UUID projectId = UUID.randomUUID();
     UUID parentFeatureId = UUID.randomUUID();
@@ -91,7 +95,7 @@ class WorkItemTransitionEventListenerTest {
   }
 
   @Test
-  void userStoryDone_allUsDone_autoTransitionsParentFeatureToPrReview() {
+  void shouldAutoTransitionFeatureToPrReview_whenAllUserStoriesDone() {
     UUID tenantId = UUID.randomUUID();
     UUID projectId = UUID.randomUUID();
     UUID parentFeatureId = UUID.randomUUID();
@@ -111,7 +115,7 @@ class WorkItemTransitionEventListenerTest {
   }
 
   @Test
-  void userStoryDone_featureNotInDevelopment_noAutoTransition() {
+  void shouldNotAutoTransitionFeature_whenUserStoryDoneButFeatureNotInDevelopment() {
     UUID tenantId = UUID.randomUUID();
     UUID projectId = UUID.randomUUID();
     UUID parentFeatureId = UUID.randomUUID();

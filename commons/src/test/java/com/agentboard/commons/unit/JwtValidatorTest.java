@@ -15,10 +15,6 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-/**
- * Unit tests for {@link JwtValidator} covering valid tokens, expiry, tampering,
- * and missing claims.
- */
 class JwtValidatorTest {
 
   private static final String secret =
@@ -32,7 +28,7 @@ class JwtValidatorTest {
   }
 
   @Test
-  void validTokenReturnsParsedToken() {
+  void shouldReturnParsedToken_whenTokenIsValid() {
     UUID userId = UUID.randomUUID();
     UUID tenantId = UUID.randomUUID();
     String token = buildToken(userId, tenantId, List.of("USER"),
@@ -44,7 +40,7 @@ class JwtValidatorTest {
   }
 
   @Test
-  void expiredTokenThrowsInvalidTokenException() {
+  void shouldThrowInvalidTokenException_whenTokenIsExpired() {
     String token = buildToken(UUID.randomUUID(), UUID.randomUUID(), List.of("USER"),
         System.currentTimeMillis() - 1_000L);
     assertThatThrownBy(() -> validator.validate(token))
@@ -52,7 +48,7 @@ class JwtValidatorTest {
   }
 
   @Test
-  void tamperedSignatureThrowsInvalidTokenException() {
+  void shouldThrowInvalidTokenException_whenSignatureIsTampered() {
     String differentSecret =
         "different-secret-key-that-is-long-enough-for-hmac-sha-256-32b";
     String tamperedToken = buildTokenWithSecret(UUID.randomUUID(), UUID.randomUUID(),
@@ -62,7 +58,7 @@ class JwtValidatorTest {
   }
 
   @Test
-  void missingTenantIdClaimThrowsInvalidTokenException() {
+  void shouldThrowInvalidTokenException_whenTenantIdClaimIsMissing() {
     String token = Jwts.builder()
         .subject(UUID.randomUUID().toString())
         .expiration(new Date(System.currentTimeMillis() + 3_600_000L))
@@ -73,7 +69,7 @@ class JwtValidatorTest {
   }
 
   @Test
-  void missingSubjectClaimThrowsInvalidTokenException() {
+  void shouldThrowInvalidTokenException_whenSubjectClaimIsMissing() {
     String token = Jwts.builder()
         .claim("tenantId", UUID.randomUUID().toString())
         .expiration(new Date(System.currentTimeMillis() + 3_600_000L))

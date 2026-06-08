@@ -18,11 +18,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-/**
- * Unit tests for {@link ProjectService}.
- *
- * <p>Covers: API key uniqueness format, constitution default, tenant isolation in findByApiKey.
- */
 @ExtendWith(MockitoExtension.class)
 class ProjectServiceTest {
 
@@ -37,7 +32,7 @@ class ProjectServiceTest {
   }
 
   @Test
-  void createProject_generatesApiKeyWithAgbPrefix() {
+  void shouldGenerateApiKeyWithAgbPrefix_whenCreateProject() {
     UUID tenantId = UUID.randomUUID();
     when(projectRepository.save(any(Project.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -47,7 +42,7 @@ class ProjectServiceTest {
   }
 
   @Test
-  void createProject_apiKeyIsUnique_generatesNewUuidEachTime() {
+  void shouldGenerateUniqueApiKey_whenCreateProjectCalledTwice() {
     UUID tenantId = UUID.randomUUID();
     when(projectRepository.save(any(Project.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -58,7 +53,7 @@ class ProjectServiceTest {
   }
 
   @Test
-  void createProject_usesDefaultConstitution_whenNull() {
+  void shouldUseDefaultConstitution_whenCreateProjectWithNullConstitution() {
     UUID tenantId = UUID.randomUUID();
     when(projectRepository.save(any(Project.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -69,7 +64,7 @@ class ProjectServiceTest {
   }
 
   @Test
-  void createProject_usesProvidedConstitution() {
+  void shouldUseProvidedConstitution_whenCreateProjectWithCustomConstitution() {
     UUID tenantId = UUID.randomUUID();
     when(projectRepository.save(any(Project.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -79,7 +74,7 @@ class ProjectServiceTest {
   }
 
   @Test
-  void listByTenant_returnsProjectsForTenant() {
+  void shouldReturnProjects_whenListByTenant() {
     UUID tenantId = UUID.randomUUID();
     Project p = new Project(tenantId, "Project", null, "agb_key");
     when(projectRepository.findAllByTenantId(tenantId)).thenReturn(List.of(p));
@@ -91,7 +86,7 @@ class ProjectServiceTest {
   }
 
   @Test
-  void getByApiKey_throwsResourceNotFound_whenKeyNotFound() {
+  void shouldThrowResourceNotFoundException_whenGetByApiKeyNotFound() {
     when(projectRepository.findByApiKey("agb_unknown")).thenReturn(Optional.empty());
 
     assertThatThrownBy(() -> projectService.getByApiKey("agb_unknown"))
@@ -99,7 +94,7 @@ class ProjectServiceTest {
   }
 
   @Test
-  void getByApiKey_returnsProject_whenFound() {
+  void shouldReturnProject_whenGetByApiKeyFound() {
     UUID tenantId = UUID.randomUUID();
     Project p = new Project(tenantId, "Project", null, "agb_abc123");
     when(projectRepository.findByApiKey("agb_abc123")).thenReturn(Optional.of(p));

@@ -8,7 +8,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
-/** Unit tests for {@link TenantContext} thread-local isolation. */
 class TenantContextTest {
 
   @AfterEach
@@ -17,26 +16,26 @@ class TenantContextTest {
   }
 
   @Test
-  void setAndGetReturnSameTenantId() {
+  void shouldReturnSameTenantId_whenSetAndGet() {
     UUID tenantId = UUID.randomUUID();
     TenantContext.set(tenantId);
     assertThat(TenantContext.get()).isEqualTo(tenantId);
   }
 
   @Test
-  void clearRemovesTenantId() {
+  void shouldReturnNull_whenClearCalledAfterSet() {
     TenantContext.set(UUID.randomUUID());
     TenantContext.clear();
     assertThat(TenantContext.get()).isNull();
   }
 
   @Test
-  void getReturnsNullWhenNeverSet() {
+  void shouldReturnNull_whenNeverSet() {
     assertThat(TenantContext.get()).isNull();
   }
 
   @Test
-  void threadLocalIsIsolatedAcrossThreads() throws InterruptedException {
+  void shouldIsolateTenantIdAcrossThreads_whenRunConcurrently() throws InterruptedException {
     UUID mainTenantId = UUID.randomUUID();
     UUID otherTenantId = UUID.randomUUID();
     TenantContext.set(mainTenantId);
