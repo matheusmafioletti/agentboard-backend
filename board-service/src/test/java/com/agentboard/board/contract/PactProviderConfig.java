@@ -43,9 +43,16 @@ public abstract class PactProviderConfig {
     registry.add("spring.datasource.password", postgres::getPassword);
   }
 
-  /** Sets the Pact verification HTTP target to the running server port. */
+  /**
+   * Sets the Pact verification HTTP target to the running server port.
+   *
+   * <p>The context is {@code null} when {@code @IgnoreNoPactsToVerify} produces a dummy
+   * invocation because every interaction was filtered out or no pact files were found.
+   */
   @BeforeEach
   void setTarget(PactVerificationContext context) {
-    context.setTarget(new HttpTestTarget("localhost", port));
+    if (context != null) {
+      context.setTarget(new HttpTestTarget("localhost", port));
+    }
   }
 }

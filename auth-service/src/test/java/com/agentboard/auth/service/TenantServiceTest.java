@@ -10,6 +10,8 @@ import com.agentboard.auth.exception.DuplicateTenantNameException;
 import com.agentboard.auth.repository.TenantApiKeyRepository;
 import com.agentboard.auth.repository.TenantRepository;
 import com.agentboard.auth.repository.UserAccountRepository;
+import com.agentboard.commons.domain.DataSource;
+import com.agentboard.commons.policy.DataSourcePolicy;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -39,6 +41,8 @@ class TenantServiceTest {
     private MembershipService membershipService;
     @Mock
     private SessionFactory sessionFactory;
+    @Mock
+    private DataSourcePolicy dataSourcePolicy;
 
     private TenantService tenantService;
 
@@ -49,7 +53,8 @@ class TenantServiceTest {
                 userAccountRepository,
                 tenantApiKeyRepository,
                 membershipService,
-                sessionFactory);
+                sessionFactory,
+                dataSourcePolicy);
     }
 
     @Test
@@ -69,7 +74,8 @@ class TenantServiceTest {
         when(tenantRepository.existsByName(tenantName)).thenReturn(false);
         when(userAccountRepository.findById(userId)).thenReturn(Optional.of(user));
         when(tenantRepository.save(any(Tenant.class))).thenReturn(tenant);
-        when(membershipService.createAdminMembership(userId, tenantId)).thenReturn(membership);
+        when(membershipService.createAdminMembership(userId, tenantId, DataSource.MANUAL))
+            .thenReturn(membership);
         when(sessionFactory.buildSession(user, tenant, membership)).thenReturn(session);
 
         CreateTenantResponse response = tenantService.createTenantForUser(userId, tenantName);
@@ -83,7 +89,7 @@ class TenantServiceTest {
 
         verify(tenantRepository).save(any(Tenant.class));
         verify(tenantApiKeyRepository).save(any());
-        verify(membershipService).createAdminMembership(userId, tenantId);
+        verify(membershipService).createAdminMembership(userId, tenantId, DataSource.MANUAL);
         verify(sessionFactory).buildSession(user, tenant, membership);
     }
 

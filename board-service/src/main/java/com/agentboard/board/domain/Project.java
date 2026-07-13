@@ -1,5 +1,6 @@
 package com.agentboard.board.domain;
 
+import com.agentboard.commons.domain.DataSource;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -51,6 +52,9 @@ public class Project {
   @Column(name = "updated_at", nullable = false)
   private Instant updatedAt;
 
+  @Column(name = "data_source", nullable = false, length = 20)
+  private DataSource dataSource = DataSource.MANUAL;
+
   /** Required by JPA. */
   protected Project() {}
 
@@ -63,11 +67,24 @@ public class Project {
    * @param apiKey              pre-generated API key (must already have the {@code agb_} prefix)
    */
   public Project(UUID tenantId, String name, String constitutionContent, String apiKey) {
+    this(tenantId, name, constitutionContent, apiKey, DataSource.MANUAL);
+  }
+
+  /**
+   * Creates a new Project with an explicit data provenance tag.
+   */
+  public Project(
+      UUID tenantId,
+      String name,
+      String constitutionContent,
+      String apiKey,
+      DataSource dataSource) {
     this.tenantId = tenantId;
     this.name = name;
     this.constitutionContent =
         constitutionContent != null ? constitutionContent : DEFAULT_CONSTITUTION;
     this.apiKey = apiKey;
+    this.dataSource = dataSource != null ? dataSource : DataSource.MANUAL;
   }
 
   @PrePersist
@@ -125,5 +142,10 @@ public class Project {
   /** Replaces the project name. */
   public void updateName(String newName) {
     this.name = newName;
+  }
+
+  /** Returns the provenance tag for this project. */
+  public DataSource getDataSource() {
+    return dataSource;
   }
 }

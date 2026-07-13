@@ -13,11 +13,14 @@ import com.agentboard.auth.dto.VerifyInviteCredentialsResponse;
 import com.agentboard.auth.exception.AlreadyMemberException;
 import com.agentboard.auth.exception.DuplicatePendingInviteException;
 import com.agentboard.auth.exception.ForbiddenOperationException;
-import com.agentboard.auth.exception.InviteGoneException;
 import com.agentboard.auth.exception.InvalidCredentialsException;
+import com.agentboard.auth.exception.InviteGoneException;
 import com.agentboard.auth.repository.TenantInviteRepository;
 import com.agentboard.auth.repository.TenantRepository;
 import com.agentboard.auth.repository.UserAccountRepository;
+import com.agentboard.commons.context.DataSourceContext;
+import com.agentboard.commons.domain.DataSource;
+import com.agentboard.commons.policy.DataSourcePolicy;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -43,6 +46,7 @@ public class InviteService {
   private final SessionFactory sessionFactory;
   private final PasswordEncoder passwordEncoder;
   private final String inviteBaseUrl;
+  private final DataSourcePolicy dataSourcePolicy;
 
   /**
    * Creates the invite service.
@@ -54,6 +58,7 @@ public class InviteService {
       MembershipService membershipService,
       SessionFactory sessionFactory,
       PasswordEncoder passwordEncoder,
+      DataSourcePolicy dataSourcePolicy,
       @Value("${app.invite-base-url:http://localhost:5173}") String inviteBaseUrl) {
     this.inviteRepository = inviteRepository;
     this.tenantRepository = tenantRepository;
@@ -61,6 +66,7 @@ public class InviteService {
     this.membershipService = membershipService;
     this.sessionFactory = sessionFactory;
     this.passwordEncoder = passwordEncoder;
+    this.dataSourcePolicy = dataSourcePolicy;
     this.inviteBaseUrl = inviteBaseUrl.endsWith("/")
         ? inviteBaseUrl.substring(0, inviteBaseUrl.length() - 1)
         : inviteBaseUrl;
@@ -69,6 +75,10 @@ public class InviteService {
   /** Creates a pending invite and returns the response including the one-time URL. */
   @Transactional
   public InviteResponse createInvite(UUID tenantId, UUID invitedBy, String email) {
+    Tenant tenant = tenantRepository.findById(tenantId).orElseThrow();
+    DataSource source = DataSourceContext.get();
+    dataSourcePolicy.requireTestTenantForSynthetic(tenantId, source, tenant.isTestTenant());
+
     String normalizedEmail = email.trim().toLowerCase();
 
     userAccountRepository.findByEmail(normalizedEmail).ifPresent(user -> {
@@ -87,7 +97,7 @@ public class InviteService {
     OffsetDateTime expiresAt = OffsetDateTime.now().plusDays(INVITE_VALIDITY_DAYS);
 
     TenantInvite invite = inviteRepository.save(new TenantInvite(
-        tenantId, normalizedEmail, tokenHash, invitedBy, expiresAt));
+        tenantId, normalizedEmail, tokenHash, invitedBy, expiresAt, source));
 
     return toResponse(invite, rawToken);
   }
@@ -157,14 +167,16 @@ public class InviteService {
   public SessionResponse acceptInvite(String rawToken, AcceptInviteRequest request) {
     TenantInvite invite = findActiveInvite(rawToken);
     Tenant tenant = tenantRepository.findById(invite.getTenantId()).orElseThrow();
+    DataSource source = DataSourceContext.get();
+    dataSourcePolicy.requireTestTenantForSynthetic(tenant.getId(), source, tenant.isTestTenant());
 
-    UserAccount user = resolveUserForAccept(invite, request);
+    UserAccount user = resolveUserForAccept(invite, request, source);
 
     if (membershipService.isMember(user.getId(), tenant.getId())) {
       throw new AlreadyMemberException();
     }
 
-    membershipService.createUserMembership(user.getId(), tenant.getId());
+    membershipService.createUserMembership(user.getId(), tenant.getId(), source);
     invite.markAccepted();
     inviteRepository.save(invite);
 
@@ -172,7 +184,8 @@ public class InviteService {
     return sessionFactory.buildSession(user, tenant, membership);
   }
 
-  private UserAccount resolveUserForAccept(TenantInvite invite, AcceptInviteRequest request) {
+  private UserAccount resolveUserForAccept(
+      TenantInvite invite, AcceptInviteRequest request, DataSource source) {
     var existing = userAccountRepository.findByEmail(invite.getEmail());
 
     if (existing.isEmpty()) {
@@ -183,7 +196,8 @@ public class InviteService {
       return userAccountRepository.save(new UserAccount(
           request.name(),
           invite.getEmail(),
-          passwordEncoder.encode(request.password())));
+          passwordEncoder.encode(request.password()),
+          source));
     }
 
     if (request.email() == null || request.password() == null) {

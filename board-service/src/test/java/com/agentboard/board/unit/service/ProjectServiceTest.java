@@ -9,6 +9,8 @@ import com.agentboard.board.domain.Project;
 import com.agentboard.board.repository.ProjectRepository;
 import com.agentboard.board.service.ProjectService;
 import com.agentboard.commons.exceptions.ResourceNotFoundException;
+import com.agentboard.commons.policy.DataSourcePolicy;
+import com.agentboard.commons.tenant.TenantTestFlagReader;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -24,11 +26,18 @@ class ProjectServiceTest {
   @Mock
   private ProjectRepository projectRepository;
 
+  @Mock
+  private DataSourcePolicy dataSourcePolicy;
+
+  @Mock
+  private TenantTestFlagReader tenantTestFlagReader;
+
   private ProjectService projectService;
 
   @BeforeEach
   void setUp() {
-    projectService = new ProjectService(projectRepository);
+    projectService = new ProjectService(
+        projectRepository, dataSourcePolicy, tenantTestFlagReader);
   }
 
   @Test

@@ -1,5 +1,6 @@
 package com.agentboard.board.domain;
 
+import com.agentboard.commons.domain.DataSource;
 import com.agentboard.commons.domain.WorkItemType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -76,6 +77,9 @@ public class WorkItem {
   @Column(name = "assignee_id")
   private UUID assigneeId;
 
+  @Column(name = "data_source", nullable = false, length = 20)
+  private DataSource dataSource = DataSource.MANUAL;
+
   /** Required by JPA. */
   protected WorkItem() {}
 
@@ -98,6 +102,16 @@ public class WorkItem {
   public WorkItem(UUID projectId, UUID tenantId, WorkItemType type,
       String title, String description, UUID parentId, int priority, String displayKey,
       UUID assigneeId) {
+    this(projectId, tenantId, type, title, description, parentId, priority, displayKey,
+        assigneeId, DataSource.MANUAL);
+  }
+
+  /**
+   * Creates a new WorkItem with an explicit data provenance tag.
+   */
+  public WorkItem(UUID projectId, UUID tenantId, WorkItemType type,
+      String title, String description, UUID parentId, int priority, String displayKey,
+      UUID assigneeId, DataSource dataSource) {
     this.projectId = projectId;
     this.tenantId = tenantId;
     this.type = type;
@@ -109,6 +123,7 @@ public class WorkItem {
     this.status = initialStatus(type);
     this.displayKey = displayKey;
     this.assigneeId = assigneeId;
+    this.dataSource = dataSource != null ? dataSource : DataSource.MANUAL;
   }
 
   @PrePersist
@@ -191,6 +206,11 @@ public class WorkItem {
   /** Returns the optional assignee user identifier, or null if unassigned. */
   public UUID getAssigneeId() {
     return assigneeId;
+  }
+
+  /** Returns the provenance tag for this work item. */
+  public DataSource getDataSource() {
+    return dataSource;
   }
 
   /**

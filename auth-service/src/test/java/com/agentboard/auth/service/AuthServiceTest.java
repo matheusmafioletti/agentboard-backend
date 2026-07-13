@@ -20,6 +20,8 @@ import com.agentboard.auth.exception.NotMemberException;
 import com.agentboard.auth.repository.TenantApiKeyRepository;
 import com.agentboard.auth.repository.TenantRepository;
 import com.agentboard.auth.repository.UserAccountRepository;
+import com.agentboard.commons.domain.DataSource;
+import com.agentboard.commons.policy.DataSourcePolicy;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -54,6 +56,8 @@ class AuthServiceTest {
     private MembershipService membershipService;
     @Mock
     private SessionFactory sessionFactory;
+    @Mock
+    private DataSourcePolicy dataSourcePolicy;
 
     private AuthService authService;
 
@@ -65,7 +69,8 @@ class AuthServiceTest {
                 tenantApiKeyRepository,
                 passwordEncoder,
                 membershipService,
-                sessionFactory);
+                sessionFactory,
+                dataSourcePolicy);
     }
 
     @Test
@@ -84,7 +89,8 @@ class AuthServiceTest {
         when(tenantRepository.save(any(Tenant.class))).thenReturn(tenant);
         when(passwordEncoder.encode("12345678")).thenReturn("hashed-password");
         when(userAccountRepository.save(any(UserAccount.class))).thenReturn(user);
-        when(membershipService.createAdminMembership(userId, tenantId)).thenReturn(membership);
+        when(membershipService.createAdminMembership(userId, tenantId, DataSource.MANUAL))
+            .thenReturn(membership);
         when(sessionFactory.buildSession(user, tenant, membership)).thenReturn(session);
 
         RegisterResponse response = authService.register(request);

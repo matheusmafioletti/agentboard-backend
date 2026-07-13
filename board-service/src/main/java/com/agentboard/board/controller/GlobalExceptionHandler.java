@@ -1,5 +1,7 @@
 package com.agentboard.board.controller;
 
+import com.agentboard.commons.exceptions.DataSourceNotAllowedException;
+import com.agentboard.commons.exceptions.InvalidDataSourceException;
 import com.agentboard.commons.exceptions.ResourceNotFoundException;
 import com.agentboard.commons.exceptions.TenantMismatchException;
 import java.time.OffsetDateTime;
@@ -28,6 +30,20 @@ public class GlobalExceptionHandler {
   @ResponseStatus(HttpStatus.FORBIDDEN)
   public Map<String, Object> handleTenantMismatch(TenantMismatchException ex) {
     return errorBody("FORBIDDEN", ex.getMessage());
+  }
+
+  /** Maps invalid {@code X-Data-Source} values to HTTP 400. */
+  @ExceptionHandler(InvalidDataSourceException.class)
+  @ResponseStatus(HttpStatus.BAD_REQUEST)
+  public Map<String, Object> handleInvalidDataSource(InvalidDataSourceException ex) {
+    return errorBody("INVALID_DATA_SOURCE", ex.getMessage());
+  }
+
+  /** Maps synthetic data source violations to HTTP 403. */
+  @ExceptionHandler(DataSourceNotAllowedException.class)
+  @ResponseStatus(HttpStatus.FORBIDDEN)
+  public Map<String, Object> handleDataSourceNotAllowed(DataSourceNotAllowedException ex) {
+    return errorBody("DATA_SOURCE_NOT_ALLOWED", ex.getMessage());
   }
 
   /** Maps illegal-state errors (e.g. task already completed) to HTTP 409. */

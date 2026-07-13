@@ -1,5 +1,6 @@
 package com.agentboard.auth.domain;
 
+import com.agentboard.commons.domain.DataSource;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -30,6 +31,9 @@ public class TenantApiKey {
   @Column(name = "revoked_at")
   private OffsetDateTime revokedAt;
 
+  @Column(name = "data_source", nullable = false, length = 20)
+  private DataSource dataSource = DataSource.MANUAL;
+
   /** Required by JPA. */
   protected TenantApiKey() {}
 
@@ -40,9 +44,17 @@ public class TenantApiKey {
    * @param keyHash  SHA-256 hex digest of the raw API key
    */
   public TenantApiKey(UUID tenantId, String keyHash) {
+    this(tenantId, keyHash, DataSource.MANUAL);
+  }
+
+  /**
+   * Creates a new API key record with an explicit data provenance tag.
+   */
+  public TenantApiKey(UUID tenantId, String keyHash, DataSource dataSource) {
     this.tenantId = tenantId;
     this.keyHash = keyHash;
     this.createdAt = OffsetDateTime.now();
+    this.dataSource = dataSource != null ? dataSource : DataSource.MANUAL;
   }
 
   /** Returns the unique identifier of this key record. */
@@ -68,5 +80,10 @@ public class TenantApiKey {
   /** Returns the instant this key was revoked, or {@code null} if active. */
   public OffsetDateTime getRevokedAt() {
     return revokedAt;
+  }
+
+  /** Returns the provenance tag for this API key. */
+  public DataSource getDataSource() {
+    return dataSource;
   }
 }

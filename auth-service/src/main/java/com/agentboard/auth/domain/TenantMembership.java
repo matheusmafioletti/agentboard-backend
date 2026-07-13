@@ -1,5 +1,6 @@
 package com.agentboard.auth.domain;
 
+import com.agentboard.commons.domain.DataSource;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -33,15 +34,24 @@ public class TenantMembership {
   @Column(name = "joined_at", nullable = false, updatable = false)
   private OffsetDateTime joinedAt;
 
+  @Column(name = "data_source", nullable = false, length = 20)
+  private DataSource dataSource = DataSource.MANUAL;
+
   /** Required by JPA. */
   protected TenantMembership() {}
 
   /** Creates a new membership for the given user and tenant. */
   public TenantMembership(UUID userId, UUID tenantId, MembershipRole role) {
+    this(userId, tenantId, role, DataSource.MANUAL);
+  }
+
+  /** Creates a membership with an explicit data provenance tag. */
+  public TenantMembership(UUID userId, UUID tenantId, MembershipRole role, DataSource dataSource) {
     this.userId = userId;
     this.tenantId = tenantId;
     this.role = role;
     this.joinedAt = OffsetDateTime.now();
+    this.dataSource = dataSource != null ? dataSource : DataSource.MANUAL;
   }
 
   /** Returns the membership identifier. */
@@ -67,5 +77,10 @@ public class TenantMembership {
   /** Returns when the user joined this tenant. */
   public OffsetDateTime getJoinedAt() {
     return joinedAt;
+  }
+
+  /** Returns the provenance tag for this membership. */
+  public DataSource getDataSource() {
+    return dataSource;
   }
 }

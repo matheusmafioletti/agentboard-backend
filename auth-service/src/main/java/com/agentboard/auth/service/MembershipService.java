@@ -12,6 +12,7 @@ import com.agentboard.auth.exception.NotMemberException;
 import com.agentboard.auth.repository.TenantMembershipRepository;
 import com.agentboard.auth.repository.TenantRepository;
 import com.agentboard.auth.repository.UserAccountRepository;
+import com.agentboard.commons.domain.DataSource;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -63,15 +64,29 @@ public class MembershipService {
   /** Creates an admin membership for a user in a tenant. */
   @Transactional
   public TenantMembership createAdminMembership(UUID userId, UUID tenantId) {
+    return createAdminMembership(userId, tenantId, DataSource.MANUAL);
+  }
+
+  /** Creates an admin membership with an explicit data provenance tag. */
+  @Transactional
+  public TenantMembership createAdminMembership(
+      UUID userId, UUID tenantId, DataSource dataSource) {
     return membershipRepository.save(
-        new TenantMembership(userId, tenantId, MembershipRole.ADMIN));
+        new TenantMembership(userId, tenantId, MembershipRole.ADMIN, dataSource));
   }
 
   /** Creates a user membership for a user in a tenant. */
   @Transactional
   public TenantMembership createUserMembership(UUID userId, UUID tenantId) {
+    return createUserMembership(userId, tenantId, DataSource.MANUAL);
+  }
+
+  /** Creates a user membership with an explicit data provenance tag. */
+  @Transactional
+  public TenantMembership createUserMembership(
+      UUID userId, UUID tenantId, DataSource dataSource) {
     return membershipRepository.save(
-        new TenantMembership(userId, tenantId, MembershipRole.USER));
+        new TenantMembership(userId, tenantId, MembershipRole.USER, dataSource));
   }
 
   /** Lists all members of a tenant with user details. */

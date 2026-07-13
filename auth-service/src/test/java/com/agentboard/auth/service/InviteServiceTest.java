@@ -20,6 +20,8 @@ import com.agentboard.auth.exception.InvalidCredentialsException;
 import com.agentboard.auth.repository.TenantInviteRepository;
 import com.agentboard.auth.repository.TenantRepository;
 import com.agentboard.auth.repository.UserAccountRepository;
+import com.agentboard.commons.domain.DataSource;
+import com.agentboard.commons.policy.DataSourcePolicy;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -39,6 +41,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -60,6 +63,8 @@ class InviteServiceTest {
     private SessionFactory sessionFactory;
     @Mock
     private PasswordEncoder passwordEncoder;
+    @Mock
+    private DataSourcePolicy dataSourcePolicy;
 
     private InviteService inviteService;
 
@@ -72,7 +77,13 @@ class InviteServiceTest {
                 membershipService,
                 sessionFactory,
                 passwordEncoder,
+                dataSourcePolicy,
                 INVITE_BASE_URL);
+        lenient().when(tenantRepository.findById(any(UUID.class))).thenAnswer(invocation -> {
+            Tenant tenant = new Tenant("Test Tenant");
+            ReflectionTestUtils.setField(tenant, "id", invocation.getArgument(0));
+            return Optional.of(tenant);
+        });
     }
 
     @Test
@@ -349,7 +360,8 @@ class InviteServiceTest {
         when(passwordEncoder.encode("password123")).thenReturn("hashed-password");
         when(userAccountRepository.save(any(UserAccount.class))).thenReturn(user);
         when(membershipService.isMember(userId, tenantId)).thenReturn(false);
-        when(membershipService.createUserMembership(userId, tenantId)).thenReturn(membership);
+        when(membershipService.createUserMembership(userId, tenantId, DataSource.MANUAL))
+            .thenReturn(membership);
         when(membershipService.getMembership(userId, tenantId)).thenReturn(membership);
         when(sessionFactory.buildSession(user, tenant, membership)).thenReturn(session);
         when(inviteRepository.save(invite)).thenReturn(invite);
@@ -361,7 +373,7 @@ class InviteServiceTest {
                 .returns(userId, SessionResponse::userId)
                 .returns(tenantId, SessionResponse::tenantId);
         assertThat(invite.getStatus()).isEqualTo(InviteStatus.ACCEPTED);
-        verify(membershipService).createUserMembership(userId, tenantId);
+        verify(membershipService).createUserMembership(userId, tenantId, DataSource.MANUAL);
     }
 
     @Test
@@ -386,7 +398,8 @@ class InviteServiceTest {
         when(userAccountRepository.findByEmail("guest@example.com")).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("password123", "hashed-password")).thenReturn(true);
         when(membershipService.isMember(userId, tenantId)).thenReturn(false);
-        when(membershipService.createUserMembership(userId, tenantId)).thenReturn(membership);
+        when(membershipService.createUserMembership(userId, tenantId, DataSource.MANUAL))
+            .thenReturn(membership);
         when(membershipService.getMembership(userId, tenantId)).thenReturn(membership);
         when(sessionFactory.buildSession(user, tenant, membership)).thenReturn(session);
         when(inviteRepository.save(invite)).thenReturn(invite);
@@ -422,7 +435,7 @@ class InviteServiceTest {
                 .isInstanceOf(AlreadyMemberException.class)
                 .hasMessage("User is already a member of this workspace");
 
-        verify(membershipService, never()).createUserMembership(any(), any());
+        verify(membershipService, never()).createUserMembership(any(), any(), any());
     }
 
     private static TenantInvite activeInvite(

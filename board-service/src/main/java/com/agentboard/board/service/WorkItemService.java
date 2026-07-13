@@ -3,7 +3,11 @@ package com.agentboard.board.service;
 import com.agentboard.board.domain.WorkItem;
 import com.agentboard.board.domain.WorkItemDisplayKeys;
 import com.agentboard.board.event.WorkItemMovedEvent;
+import com.agentboard.board.repository.ProjectRepository;
 import com.agentboard.board.repository.WorkItemRepository;
+import com.agentboard.commons.context.DataSourceContext;
+import com.agentboard.commons.policy.DataSourcePolicy;
+import com.agentboard.commons.tenant.TenantTestFlagReader;
 import com.agentboard.commons.domain.FeatureStage;
 import com.agentboard.commons.domain.TaskStatus;
 import com.agentboard.commons.domain.UserStoryStage;
@@ -39,13 +43,23 @@ public class WorkItemService {
       .map(Enum::name).collect(Collectors.toUnmodifiableSet());
 
   private final WorkItemRepository workItemRepository;
+  private final ProjectRepository projectRepository;
   private final ApplicationEventPublisher eventPublisher;
+  private final DataSourcePolicy dataSourcePolicy;
+  private final TenantTestFlagReader tenantTestFlagReader;
 
   /** Creates the service backed by the given repository. */
-  public WorkItemService(WorkItemRepository workItemRepository,
-      ApplicationEventPublisher eventPublisher) {
+  public WorkItemService(
+      WorkItemRepository workItemRepository,
+      ProjectRepository projectRepository,
+      ApplicationEventPublisher eventPublisher,
+      DataSourcePolicy dataSourcePolicy,
+      TenantTestFlagReader tenantTestFlagReader) {
     this.workItemRepository = workItemRepository;
+    this.projectRepository = projectRepository;
     this.eventPublisher = eventPublisher;
+    this.dataSourcePolicy = dataSourcePolicy;
+    this.tenantTestFlagReader = tenantTestFlagReader;
   }
 
   /**
@@ -94,12 +108,25 @@ public class WorkItemService {
   @Transactional
   public WorkItem createWorkItem(UUID tenantId, UUID projectId, WorkItemType type,
       String title, String description, UUID parentId, int priority, UUID assigneeId) {
+    requireProjectInTenant(projectId, tenantId);
+
+    var source = DataSourceContext.get();
+    dataSourcePolicy.requireTestTenantForSynthetic(
+        tenantId, source, tenantTestFlagReader.isTestTenant(tenantId));
+
     validateParent(type, parentId, tenantId);
     int nextSeq = workItemRepository.findMaxDisplayKeySeq(projectId, tenantId, type.name()) + 1;
     String displayKey = WorkItemDisplayKeys.format(type, nextSeq);
     WorkItem item = new WorkItem(
-        projectId, tenantId, type, title, description, parentId, priority, displayKey, assigneeId);
+        projectId, tenantId, type, title, description, parentId, priority, displayKey,
+        assigneeId, source);
     return workItemRepository.save(item);
+  }
+
+  private void requireProjectInTenant(UUID projectId, UUID tenantId) {
+    projectRepository.findByIdAndTenantId(projectId, tenantId)
+        .orElseThrow(() -> new ResourceNotFoundException(
+            "Project " + projectId + " not found for tenant " + tenantId));
   }
 
   /**

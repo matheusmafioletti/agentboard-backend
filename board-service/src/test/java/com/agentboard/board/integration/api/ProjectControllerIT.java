@@ -1,20 +1,86 @@
 package com.agentboard.board.integration.api;
 
 import static io.restassured.RestAssured.given;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
 
 import com.agentboard.board.integration.AbstractIntegrationTest;
+import com.agentboard.board.integration.TestTenantSupport;
 import io.restassured.http.ContentType;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.annotation.DirtiesContext.ClassMode;
 
 /** Integration tests for Project CRUD endpoints. */
 @DirtiesContext(classMode = ClassMode.BEFORE_CLASS)
 class ProjectControllerIT extends AbstractIntegrationTest {
+
+  @Autowired
+  TestTenantSupport testTenantSupport;
+
+  @Test
+  void createProject_withoutHeader_persistsManualDataSource() {
+    UUID tenantId = UUID.randomUUID();
+    String jwt = buildJwt(tenantId, UUID.randomUUID());
+
+    String projectId = given()
+        .header("Authorization", "Bearer " + jwt)
+        .contentType(ContentType.JSON)
+        .body(Map.of("name", "Manual Project " + UUID.randomUUID()))
+        .when()
+        .post("/api/v1/projects")
+        .then()
+        .statusCode(201)
+        .extract()
+        .path("id");
+
+    assertThat(testTenantSupport.projectDataSource(UUID.fromString(projectId)))
+        .isEqualTo("manual");
+  }
+
+  @Test
+  void createProject_withAutomationOnNonTestTenant_returns403() {
+    UUID tenantId = UUID.randomUUID();
+    String jwt = buildJwt(tenantId, UUID.randomUUID());
+
+    given()
+        .header("Authorization", "Bearer " + jwt)
+        .header("X-Data-Source", "automation")
+        .contentType(ContentType.JSON)
+        .body(Map.of("name", "Blocked Project " + UUID.randomUUID()))
+        .when()
+        .post("/api/v1/projects")
+        .then()
+        .statusCode(403)
+        .body("error", equalTo("DATA_SOURCE_NOT_ALLOWED"));
+  }
+
+  @Test
+  void createProject_withAutomationOnTestTenant_persistsAutomationDataSource() {
+    UUID tenantId = UUID.randomUUID();
+    testTenantSupport.markTestTenant(tenantId);
+    String jwt = buildJwt(tenantId, UUID.randomUUID());
+
+    String projectId = given()
+        .header("Authorization", "Bearer " + jwt)
+        .header("X-Data-Source", "automation")
+        .contentType(ContentType.JSON)
+        .body(Map.of("name", "Automation Project " + UUID.randomUUID()))
+        .when()
+        .post("/api/v1/projects")
+        .then()
+        .statusCode(201)
+        .extract()
+        .path("id");
+
+    assertThat(testTenantSupport.projectDataSource(UUID.fromString(projectId)))
+        .isEqualTo("automation");
+  }
 
   @Test
   void listProjects_newTenant_returnsEmptyArray() {

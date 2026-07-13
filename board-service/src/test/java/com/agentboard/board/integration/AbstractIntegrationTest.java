@@ -16,25 +16,29 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 /**
  * Base class for all board-service integration tests.
  *
  * <p>Starts a shared PostgreSQL 16 TestContainer and applies Flyway migrations on first boot.
  * Subclasses inherit {@link #buildJwt} and RestAssured port configuration.
+ *
+ * <p>NOTE: the container is started once per JVM (singleton pattern) instead of using
+ * {@code @Testcontainers}, because the cached Spring context is shared by several IT classes
+ * and a per-class container restart would leave it pointing at a dead database.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Testcontainers
 public abstract class AbstractIntegrationTest {
 
-  @Container
   static final PostgreSQLContainer<?> postgres =
       new PostgreSQLContainer<>("postgres:16")
           .withDatabaseName("agentboard")
           .withUsername("agentboard")
           .withPassword("agentboard");
+
+  static {
+    postgres.start();
+  }
 
   @LocalServerPort
   int port;

@@ -24,6 +24,9 @@ public class Tenant {
   @Column(name = "created_at", nullable = false, updatable = false)
   private OffsetDateTime createdAt;
 
+  @Column(name = "test_tenant", nullable = false)
+  private boolean testTenant = false;
+
   /** Required by JPA. */
   protected Tenant() {}
 
@@ -48,5 +51,10 @@ public class Tenant {
   /** Returns the instant this tenant was created. */
   public OffsetDateTime getCreatedAt() {
     return createdAt;
+  }
+
+  /** Returns whether this workspace is marked for synthetic test data (DB-only flag). */
+  public boolean isTestTenant() {
+    return testTenant;
   }
 }

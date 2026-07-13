@@ -1,7 +1,10 @@
 package com.agentboard.auth.config;
 
+import com.agentboard.commons.security.DataSourceHeaderFilter;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.media.StringSchema;
+import io.swagger.v3.oas.models.parameters.Parameter;
 import io.swagger.v3.oas.models.servers.Server;
 import java.util.List;
 import org.springdoc.core.customizers.OpenApiCustomizer;
@@ -40,5 +43,18 @@ public class OpenApiConfig {
   public OpenApiCustomizer authServerCustomizer() {
     return openApi -> openApi.setServers(
         List.of(new Server().url(serverUrl).description("Auth Service")));
+  }
+
+  /** Documents optional {@code X-Data-Source} on all operations. */
+  @Bean
+  public OpenApiCustomizer dataSourceHeaderCustomizer() {
+    Parameter header = new Parameter()
+        .in("header")
+        .name(DataSourceHeaderFilter.HEADER_NAME)
+        .required(false)
+        .description("Optional data provenance tag: manual (default), automation, or seed")
+        .schema(new StringSchema()._enum(List.of("manual", "automation", "seed")));
+    return openApi -> openApi.getPaths().values().forEach(path ->
+        path.readOperations().forEach(operation -> operation.addParametersItem(header)));
   }
 }

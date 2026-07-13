@@ -20,6 +20,9 @@ import com.agentboard.auth.exception.NotMemberException;
 import com.agentboard.auth.repository.TenantApiKeyRepository;
 import com.agentboard.auth.repository.TenantRepository;
 import com.agentboard.auth.repository.UserAccountRepository;
+import com.agentboard.commons.context.DataSourceContext;
+import com.agentboard.commons.domain.DataSource;
+import com.agentboard.commons.policy.DataSourcePolicy;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -40,6 +43,7 @@ public class AuthService {
   private final PasswordEncoder passwordEncoder;
   private final MembershipService membershipService;
   private final SessionFactory sessionFactory;
+  private final DataSourcePolicy dataSourcePolicy;
 
   /**
    * Creates the service with all required collaborators.
@@ -50,13 +54,15 @@ public class AuthService {
       TenantApiKeyRepository tenantApiKeyRepository,
       PasswordEncoder passwordEncoder,
       MembershipService membershipService,
-      SessionFactory sessionFactory) {
+      SessionFactory sessionFactory,
+      DataSourcePolicy dataSourcePolicy) {
     this.tenantRepository = tenantRepository;
     this.userAccountRepository = userAccountRepository;
     this.tenantApiKeyRepository = tenantApiKeyRepository;
     this.passwordEncoder = passwordEncoder;
     this.membershipService = membershipService;
     this.sessionFactory = sessionFactory;
+    this.dataSourcePolicy = dataSourcePolicy;
   }
 
   /**
@@ -67,6 +73,8 @@ public class AuthService {
    */
   @Transactional
   public RegisterResponse register(RegisterRequest request) {
+    dataSourcePolicy.requireManualForNewTenant(DataSourceContext.get());
+
     if (userAccountRepository.existsByEmail(request.email())) {
       throw new DuplicateEmailException(request.email());
     }
@@ -77,12 +85,13 @@ public class AuthService {
     Tenant tenant = tenantRepository.save(new Tenant(request.tenantName()));
     String passwordHash = passwordEncoder.encode(request.password());
     UserAccount user = userAccountRepository.save(
-        new UserAccount(request.name(), request.email(), passwordHash));
+        new UserAccount(request.name(), request.email(), passwordHash, DataSource.MANUAL));
     TenantMembership membership = membershipService.createAdminMembership(
-        user.getId(), tenant.getId());
+        user.getId(), tenant.getId(), DataSource.MANUAL);
 
     String rawApiKey = UUID.randomUUID().toString();
-    tenantApiKeyRepository.save(new TenantApiKey(tenant.getId(), sha256Hex(rawApiKey)));
+    tenantApiKeyRepository.save(new TenantApiKey(tenant.getId(), sha256Hex(rawApiKey),
+        DataSource.MANUAL));
 
     SessionResponse session = sessionFactory.buildSession(user, tenant, membership);
 

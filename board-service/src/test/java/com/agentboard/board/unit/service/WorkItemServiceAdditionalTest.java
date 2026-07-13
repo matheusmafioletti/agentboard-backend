@@ -3,16 +3,21 @@ package com.agentboard.board.unit.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.agentboard.board.event.WorkItemMovedEvent;
 
+import com.agentboard.board.domain.Project;
 import com.agentboard.board.domain.WorkItem;
+import com.agentboard.board.repository.ProjectRepository;
 import com.agentboard.board.repository.WorkItemRepository;
 import com.agentboard.board.service.WorkItemService;
 import com.agentboard.commons.domain.WorkItemType;
 import com.agentboard.commons.exceptions.ResourceNotFoundException;
+import com.agentboard.commons.policy.DataSourcePolicy;
+import com.agentboard.commons.tenant.TenantTestFlagReader;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -31,13 +36,27 @@ class WorkItemServiceAdditionalTest {
   private WorkItemRepository workItemRepository;
 
   @Mock
+  private ProjectRepository projectRepository;
+
+  @Mock
   private ApplicationEventPublisher eventPublisher;
+
+  @Mock
+  private DataSourcePolicy dataSourcePolicy;
+
+  @Mock
+  private TenantTestFlagReader tenantTestFlagReader;
 
   private WorkItemService workItemService;
 
   @BeforeEach
   void setUp() {
-    workItemService = new WorkItemService(workItemRepository, eventPublisher);
+    workItemService = new WorkItemService(
+        workItemRepository, projectRepository, eventPublisher,
+        dataSourcePolicy, tenantTestFlagReader);
+    lenient().when(projectRepository.findByIdAndTenantId(any(), any()))
+        .thenAnswer(inv -> Optional.of(new Project(
+            inv.getArgument(1), "Test Project", null, "agb_unit_test")));
   }
 
   @Test

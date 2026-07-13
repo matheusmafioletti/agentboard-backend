@@ -1,8 +1,11 @@
 package com.agentboard.board.config;
 
+import com.agentboard.commons.security.DataSourceHeaderFilter;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.media.StringSchema;
+import io.swagger.v3.oas.models.parameters.Parameter;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.servers.Server;
 import java.util.List;
@@ -61,5 +64,18 @@ public class OpenApiConfig {
   public OpenApiCustomizer boardServerCustomizer() {
     return openApi -> openApi.setServers(
         List.of(new Server().url(serverUrl).description("Board Service")));
+  }
+
+  /** Documents optional {@code X-Data-Source} on all operations. */
+  @Bean
+  public OpenApiCustomizer dataSourceHeaderCustomizer() {
+    Parameter header = new Parameter()
+        .in("header")
+        .name(DataSourceHeaderFilter.HEADER_NAME)
+        .required(false)
+        .description("Optional data provenance tag: manual (default), automation, or seed")
+        .schema(new StringSchema()._enum(List.of("manual", "automation", "seed")));
+    return openApi -> openApi.getPaths().values().forEach(path ->
+        path.readOperations().forEach(operation -> operation.addParametersItem(header)));
   }
 }

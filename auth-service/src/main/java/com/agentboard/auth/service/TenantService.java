@@ -9,6 +9,9 @@ import com.agentboard.auth.exception.DuplicateTenantNameException;
 import com.agentboard.auth.repository.TenantApiKeyRepository;
 import com.agentboard.auth.repository.TenantRepository;
 import com.agentboard.auth.repository.UserAccountRepository;
+import com.agentboard.commons.context.DataSourceContext;
+import com.agentboard.commons.domain.DataSource;
+import com.agentboard.commons.policy.DataSourcePolicy;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -26,6 +29,7 @@ public class TenantService {
   private final TenantApiKeyRepository tenantApiKeyRepository;
   private final MembershipService membershipService;
   private final SessionFactory sessionFactory;
+  private final DataSourcePolicy dataSourcePolicy;
 
   /**
    * Creates the service with required collaborators.
@@ -35,12 +39,14 @@ public class TenantService {
       UserAccountRepository userAccountRepository,
       TenantApiKeyRepository tenantApiKeyRepository,
       MembershipService membershipService,
-      SessionFactory sessionFactory) {
+      SessionFactory sessionFactory,
+      DataSourcePolicy dataSourcePolicy) {
     this.tenantRepository = tenantRepository;
     this.userAccountRepository = userAccountRepository;
     this.tenantApiKeyRepository = tenantApiKeyRepository;
     this.membershipService = membershipService;
     this.sessionFactory = sessionFactory;
+    this.dataSourcePolicy = dataSourcePolicy;
   }
 
   /**
@@ -50,16 +56,20 @@ public class TenantService {
    */
   @Transactional
   public CreateTenantResponse createTenantForUser(UUID userId, String tenantName) {
+    dataSourcePolicy.requireManualForNewTenant(DataSourceContext.get());
+
     if (tenantRepository.existsByName(tenantName)) {
       throw new DuplicateTenantNameException(tenantName);
     }
 
     UserAccount user = userAccountRepository.findById(userId).orElseThrow();
     Tenant tenant = tenantRepository.save(new Tenant(tenantName));
-    var membership = membershipService.createAdminMembership(user.getId(), tenant.getId());
+    var membership = membershipService.createAdminMembership(
+        user.getId(), tenant.getId(), DataSource.MANUAL);
 
     String rawApiKey = UUID.randomUUID().toString();
-    tenantApiKeyRepository.save(new TenantApiKey(tenant.getId(), sha256Hex(rawApiKey)));
+    tenantApiKeyRepository.save(new TenantApiKey(tenant.getId(), sha256Hex(rawApiKey),
+        DataSource.MANUAL));
 
     SessionResponse session = sessionFactory.buildSession(user, tenant, membership);
 

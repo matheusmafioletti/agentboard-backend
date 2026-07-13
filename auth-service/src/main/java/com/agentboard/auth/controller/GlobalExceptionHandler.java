@@ -10,6 +10,8 @@ import com.agentboard.auth.exception.InviteGoneException;
 import com.agentboard.auth.exception.LastAdminException;
 import com.agentboard.auth.exception.NoMembershipException;
 import com.agentboard.auth.exception.NotMemberException;
+import com.agentboard.commons.exceptions.DataSourceNotAllowedException;
+import com.agentboard.commons.exceptions.InvalidDataSourceException;
 import java.time.OffsetDateTime;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
@@ -74,6 +76,20 @@ public class GlobalExceptionHandler {
   @ResponseStatus(HttpStatus.GONE)
   public Map<String, Object> handleInviteGone(InviteGoneException ex) {
     return errorBody("INVITE_GONE", ex.getMessage());
+  }
+
+  /** Maps invalid {@code X-Data-Source} values to HTTP 400. */
+  @ExceptionHandler(InvalidDataSourceException.class)
+  @ResponseStatus(HttpStatus.BAD_REQUEST)
+  public Map<String, Object> handleInvalidDataSource(InvalidDataSourceException ex) {
+    return errorBody("INVALID_DATA_SOURCE", ex.getMessage());
+  }
+
+  /** Maps synthetic data source violations to HTTP 403. */
+  @ExceptionHandler(DataSourceNotAllowedException.class)
+  @ResponseStatus(HttpStatus.FORBIDDEN)
+  public Map<String, Object> handleDataSourceNotAllowed(DataSourceNotAllowedException ex) {
+    return errorBody("DATA_SOURCE_NOT_ALLOWED", ex.getMessage());
   }
 
   /** Maps password mismatch and other argument errors to HTTP 400. */

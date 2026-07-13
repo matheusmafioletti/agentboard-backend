@@ -1,5 +1,6 @@
 package com.agentboard.auth.domain;
 
+import com.agentboard.commons.domain.DataSource;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -45,6 +46,9 @@ public class TenantInvite {
   @Column(name = "accepted_at")
   private OffsetDateTime acceptedAt;
 
+  @Column(name = "data_source", nullable = false, length = 20)
+  private DataSource dataSource = DataSource.MANUAL;
+
   /** Required by JPA. */
   protected TenantInvite() {}
 
@@ -55,6 +59,17 @@ public class TenantInvite {
       String tokenHash,
       UUID invitedBy,
       OffsetDateTime expiresAt) {
+    this(tenantId, email, tokenHash, invitedBy, expiresAt, DataSource.MANUAL);
+  }
+
+  /** Creates a pending invite with an explicit data provenance tag. */
+  public TenantInvite(
+      UUID tenantId,
+      String email,
+      String tokenHash,
+      UUID invitedBy,
+      OffsetDateTime expiresAt,
+      DataSource dataSource) {
     this.tenantId = tenantId;
     this.email = email.toLowerCase();
     this.tokenHash = tokenHash;
@@ -62,6 +77,7 @@ public class TenantInvite {
     this.invitedBy = invitedBy;
     this.expiresAt = expiresAt;
     this.createdAt = OffsetDateTime.now();
+    this.dataSource = dataSource != null ? dataSource : DataSource.MANUAL;
   }
 
   /** Returns the invite identifier. */
@@ -107,6 +123,11 @@ public class TenantInvite {
   /** Returns when the invite was accepted, if applicable. */
   public OffsetDateTime getAcceptedAt() {
     return acceptedAt;
+  }
+
+  /** Returns the provenance tag for this invite. */
+  public DataSource getDataSource() {
+    return dataSource;
   }
 
   /** Marks the invite as accepted at the current instant. */

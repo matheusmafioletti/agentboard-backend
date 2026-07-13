@@ -2,7 +2,10 @@ package com.agentboard.board.service;
 
 import com.agentboard.board.domain.Project;
 import com.agentboard.board.repository.ProjectRepository;
+import com.agentboard.commons.context.DataSourceContext;
 import com.agentboard.commons.exceptions.ResourceNotFoundException;
+import com.agentboard.commons.policy.DataSourcePolicy;
+import com.agentboard.commons.tenant.TenantTestFlagReader;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -17,10 +20,17 @@ import org.springframework.transaction.annotation.Transactional;
 public class ProjectService {
 
   private final ProjectRepository projectRepository;
+  private final DataSourcePolicy dataSourcePolicy;
+  private final TenantTestFlagReader tenantTestFlagReader;
 
   /** Creates the service backed by the given repository. */
-  public ProjectService(ProjectRepository projectRepository) {
+  public ProjectService(
+      ProjectRepository projectRepository,
+      DataSourcePolicy dataSourcePolicy,
+      TenantTestFlagReader tenantTestFlagReader) {
     this.projectRepository = projectRepository;
+    this.dataSourcePolicy = dataSourcePolicy;
+    this.tenantTestFlagReader = tenantTestFlagReader;
   }
 
   /**
@@ -33,8 +43,12 @@ public class ProjectService {
    */
   @Transactional
   public Project createProject(UUID tenantId, String name, String constitutionContent) {
+    var source = DataSourceContext.get();
+    dataSourcePolicy.requireTestTenantForSynthetic(
+        tenantId, source, tenantTestFlagReader.isTestTenant(tenantId));
+
     String apiKey = "agb_" + UUID.randomUUID().toString().replace("-", "");
-    Project project = new Project(tenantId, name, constitutionContent, apiKey);
+    Project project = new Project(tenantId, name, constitutionContent, apiKey, source);
     return projectRepository.save(project);
   }
 

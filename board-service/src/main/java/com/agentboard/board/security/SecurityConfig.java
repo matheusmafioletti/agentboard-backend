@@ -2,6 +2,7 @@ package com.agentboard.board.security;
 
 import com.agentboard.board.repository.ProjectRepository;
 import com.agentboard.board.repository.TenantApiKeyRepository;
+import com.agentboard.commons.security.DataSourceHeaderFilter;
 import com.agentboard.commons.security.JwtValidator;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
@@ -60,6 +61,7 @@ public class SecurityConfig {
    */
   @Bean
   public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    DataSourceHeaderFilter dataSourceHeaderFilter = new DataSourceHeaderFilter();
     JwtValidator jwtValidator = new JwtValidator(jwtSecret);
     ProjectApiKeyFilter projectApiKeyFilter = new ProjectApiKeyFilter(projectRepository);
     ApiKeyFilter apiKeyFilter = new ApiKeyFilter(tenantApiKeyRepository);
@@ -69,9 +71,10 @@ public class SecurityConfig {
         .cors(cors -> cors.configurationSource(corsConfigurationSource()))
         .csrf(csrf -> csrf.disable())
         .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-        .addFilterBefore(projectApiKeyFilter, UsernamePasswordAuthenticationFilter.class)
-        .addFilterBefore(apiKeyFilter, UsernamePasswordAuthenticationFilter.class)
         .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+        .addFilterBefore(apiKeyFilter, JwtAuthFilter.class)
+        .addFilterBefore(projectApiKeyFilter, ApiKeyFilter.class)
+        .addFilterBefore(dataSourceHeaderFilter, ProjectApiKeyFilter.class)
         .authorizeHttpRequests(auth -> auth
             .requestMatchers("/internal/**").permitAll()
             .requestMatchers("/ws/**").permitAll()

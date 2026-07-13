@@ -1,6 +1,7 @@
 package com.agentboard.auth.config;
 
 import com.agentboard.auth.security.JwtAuthFilter;
+import com.agentboard.commons.security.DataSourceHeaderFilter;
 import com.agentboard.commons.security.JwtValidator;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
@@ -34,6 +35,7 @@ public class SecurityConfig {
   /** Configures public auth routes, JWT-protected routes, and the JWT filter. */
   @Bean
   public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    DataSourceHeaderFilter dataSourceHeaderFilter = new DataSourceHeaderFilter();
     JwtAuthFilter jwtAuthFilter = new JwtAuthFilter(new JwtValidator(jwtSecret));
 
     return http
@@ -53,6 +55,7 @@ public class SecurityConfig {
             .anyRequest().authenticated()
         )
         .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+        .addFilterBefore(dataSourceHeaderFilter, JwtAuthFilter.class)
         .build();
   }
 

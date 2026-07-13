@@ -160,6 +160,46 @@ jobs:
         if: matrix.changed != 'true'
         run: echo "No changes in ${{ matrix.service }}, skipping image build."
 
+  publish-preview:
+    needs: build
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - service: auth-service
+            image: agentboard-auth
+          - service: board-service
+            image: agentboard-board
+          - service: api-docs-service
+            image: agentboard-api-docs
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push ${{ matrix.service }} preview
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.service }}/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image }}:${{ github.sha }}
+
   deploy:
     needs: [build, publish]
     if: |
@@ -181,4 +221,58 @@ jobs:
               "auth_tag": "${{ needs.build.outputs.auth_changed == 'true' && github.sha || 'unchanged' }}",
               "board_tag": "${{ needs.build.outputs.board_changed == 'true' && github.sha || 'unchanged' }}",
               "api_docs_tag": "${{ needs.build.outputs.api_docs_changed == 'true' && github.sha || 'unchanged' }}"
+            }
+
+  trigger-e2e:
+    needs: publish-preview
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Trigger Playwright E2E
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.E2E_TRIGGER_PAT }}
+          repository: matheusmafioletti/agentboard-e2e-playwright
+          event-type: e2e-app-pr
+          client-payload: |
+            {
+              "auth_tag": "${{ github.sha }}",
+              "board_tag": "${{ github.sha }}",
+              "api_docs_tag": "${{ github.sha }}",
+              "web_tag": "e2e-latest",
+              "source_repo": "${{ github.repository }}",
+              "pr_number": ${{ github.event.pull_request.number }}
+            }
+
+      - name: Trigger Cypress E2E
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.E2E_TRIGGER_PAT }}
+          repository: matheusmafioletti/agentboard-e2e-cypress
+          event-type: e2e-app-pr
+          client-payload: |
+            {
+              "auth_tag": "${{ github.sha }}",
+              "board_tag": "${{ github.sha }}",
+              "api_docs_tag": "${{ github.sha }}",
+              "web_tag": "e2e-latest",
+              "source_repo": "${{ github.repository }}",
+              "pr_number": ${{ github.event.pull_request.number }}
+            }
+
+      - name: Trigger Selenium E2E
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.E2E_TRIGGER_PAT }}
+          repository: matheusmafioletti/agentboard-e2e-selenium
+          event-type: e2e-app-pr
+          client-payload: |
+            {
+              "auth_tag": "${{ github.sha }}",
+              "board_tag": "${{ github.sha }}",
+              "api_docs_tag": "${{ github.sha }}",
+              "web_tag": "e2e-latest",
+              "source_repo": "${{ github.repository }}",
+              "pr_number": ${{ github.event.pull_request.number }}
             }
