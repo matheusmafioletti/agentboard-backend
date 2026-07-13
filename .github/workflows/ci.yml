@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [develop, main]
   pull_request:
-    branches: [main]
+    branches: [develop, main]
 
 env:
   REGISTRY: ghcr.io
@@ -110,7 +110,7 @@ jobs:
 
   publish:
     needs: build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -203,7 +203,7 @@ jobs:
   deploy:
     needs: [build, publish]
     if: |
-      github.event_name == 'push' && github.ref == 'refs/heads/main' &&
+      github.event_name == 'push' && github.ref == 'refs/heads/develop' &&
       (needs.build.outputs.auth_changed == 'true' ||
        needs.build.outputs.board_changed == 'true' ||
        needs.build.outputs.api_docs_changed == 'true')
@@ -222,6 +222,20 @@ jobs:
               "board_tag": "${{ needs.build.outputs.board_changed == 'true' && github.sha || 'unchanged' }}",
               "api_docs_tag": "${{ needs.build.outputs.api_docs_changed == 'true' && github.sha || 'unchanged' }}"
             }
+
+  production-simulation:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Simulate production release
+        run: |
+          echo "Production simulation — no deploy will be triggered."
+          echo "Would publish and deploy with tags:"
+          echo "  auth_tag: ${{ needs.build.outputs.auth_changed == 'true' && github.sha || 'unchanged' }}"
+          echo "  board_tag: ${{ needs.build.outputs.board_changed == 'true' && github.sha || 'unchanged' }}"
+          echo "  api_docs_tag: ${{ needs.build.outputs.api_docs_changed == 'true' && github.sha || 'unchanged' }}"
 
   trigger-e2e:
     needs: publish-preview
