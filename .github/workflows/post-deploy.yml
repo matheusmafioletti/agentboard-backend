@@ -212,10 +212,13 @@ jobs:
           repository: ${{ env.INFRA_REPO }}
           event-type: rollback-backend
 
-  publish-reports-staging:
+  prepare-reports-payload-staging:
     needs: [gate, api-staging, e2e-staging-playwright, e2e-staging-cypress, e2e-staging-selenium]
     if: always() && needs.gate.outputs.should_run == 'true'
     runs-on: ubuntu-latest
+    outputs:
+      run_id: ${{ steps.payload.outputs.run_id }}
+      results_json: ${{ steps.payload.outputs.results_json }}
 
     steps:
       - name: Build results payload
@@ -244,17 +247,19 @@ jobs:
           echo "run_id=${RUN_ID}" >> "$GITHUB_OUTPUT"
           echo "results_json=$(jq -c . /tmp/results.json)" >> "$GITHUB_OUTPUT"
 
-      - name: Publish to QA reports portal
-        continue-on-error: true
-        uses: matheusmafioletti/agentboard-qa-reports/.github/workflows/publish-report.yml@main
-        with:
-          run_id: ${{ steps.payload.outputs.run_id }}
-          sha: ${{ needs.gate.outputs.deploy_sha }}
-          env: staging
-          pr_number: ""
-          results_json: ${{ steps.payload.outputs.results_json }}
-          source_repo: ${{ github.repository }}
-          source_run_id: ${{ github.run_id }}
-        secrets:
-          QA_REPORTS_PAT: ${{ secrets.QA_REPORTS_PAT }}
-          SOURCE_DOWNLOAD_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  publish-reports-staging:
+    needs: [gate, prepare-reports-payload-staging]
+    if: always() && needs.prepare-reports-payload-staging.result != 'skipped'
+    continue-on-error: true
+    uses: matheusmafioletti/agentboard-qa-reports/.github/workflows/publish-report.yml@main
+    with:
+      run_id: ${{ needs.prepare-reports-payload-staging.outputs.run_id }}
+      sha: ${{ needs.gate.outputs.deploy_sha }}
+      env: staging
+      pr_number: ""
+      results_json: ${{ needs.prepare-reports-payload-staging.outputs.results_json }}
+      source_repo: ${{ github.repository }}
+      source_run_id: ${{ github.run_id }}
+    secrets:
+      QA_REPORTS_PAT: ${{ secrets.QA_REPORTS_PAT }}
+      SOURCE_DOWNLOAD_TOKEN: ${{ secrets.GITHUB_TOKEN }}

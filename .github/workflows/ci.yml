@@ -561,11 +561,13 @@ jobs:
           retention-days: 30
           if-no-files-found: ignore
 
-  publish-reports-pr:
+  prepare-reports-payload:
     needs: [api-local-full, e2e-playwright, e2e-cypress, e2e-selenium]
     if: always()
-    continue-on-error: true
     runs-on: ubuntu-latest
+    outputs:
+      run_id: ${{ steps.payload.outputs.run_id }}
+      results_json: ${{ steps.payload.outputs.results_json }}
 
     steps:
       - name: Build results payload
@@ -595,16 +597,19 @@ jobs:
           echo "run_id=${RUN_ID}" >> "$GITHUB_OUTPUT"
           echo "results_json=$(jq -c . /tmp/results.json)" >> "$GITHUB_OUTPUT"
 
-      - name: Publish to QA reports portal
-        uses: matheusmafioletti/agentboard-qa-reports/.github/workflows/publish-report.yml@main
-        with:
-          run_id: ${{ steps.payload.outputs.run_id }}
-          sha: ${{ github.sha }}
-          env: pr-local
-          pr_number: ${{ github.event.pull_request.number }}
-          results_json: ${{ steps.payload.outputs.results_json }}
-          source_repo: ${{ github.repository }}
-          source_run_id: ${{ github.run_id }}
-        secrets:
-          QA_REPORTS_PAT: ${{ secrets.QA_REPORTS_PAT }}
-          SOURCE_DOWNLOAD_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  publish-reports-pr:
+    needs: prepare-reports-payload
+    if: always()
+    continue-on-error: true
+    uses: matheusmafioletti/agentboard-qa-reports/.github/workflows/publish-report.yml@main
+    with:
+      run_id: ${{ needs.prepare-reports-payload.outputs.run_id }}
+      sha: ${{ github.sha }}
+      env: pr-local
+      pr_number: ${{ github.event.pull_request.number }}
+      results_json: ${{ needs.prepare-reports-payload.outputs.results_json }}
+      source_repo: ${{ github.repository }}
+      source_run_id: ${{ github.run_id }}
+    secrets:
+      QA_REPORTS_PAT: ${{ secrets.QA_REPORTS_PAT }}
+      SOURCE_DOWNLOAD_TOKEN: ${{ secrets.GITHUB_TOKEN }}
