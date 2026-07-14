@@ -90,7 +90,7 @@ Three workflows run on pull requests and after deploy:
 | Workflow | Trigger | Purpose |
 |---|---|---|
 | **CI** | `pull_request` → `develop`/`main` | Lint, test, build, publish preview images, scoped API tests |
-| **Pre-merge** | CI completed successfully on a PR | Full API + Playwright + Cypress + Selenium `@local` suite |
+| **Pre-merge** | `pull_request` → `develop`/`main` (waits for CI success) | Full API + Playwright + Cypress + Selenium `@local` suite |
 | **CD** | `push` → `develop`/`main` | Build, publish GHCR images (`develop`), deploy (`develop`), production simulation (`main`) |
 | **Post-deploy** | `repository_dispatch` `post-deploy-verify` or manual | Staging smoke across API + all E2E frameworks |
 
@@ -101,14 +101,15 @@ Configure these status checks on `develop` (and `main` if applicable):
 **CI workflow (runs on every PR push):**
 
 - `build`
-- `api-local-scoped` (skipped when no deployable service changed — use a ruleset exception or treat skip as pass)
 
-**Pre-merge workflow (runs after CI succeeds on PRs):**
+**Pre-merge workflow (runs on PR, waits for CI success):**
 
 - `api-local-full`
 - `e2e-playwright`
 - `e2e-cypress`
 - `e2e-selenium`
+
+`api-local-scoped` is informational only (skipped when no deployable service changed) — not a required check.
 
 ### Scoped API tests (`api-local-scoped`)
 
