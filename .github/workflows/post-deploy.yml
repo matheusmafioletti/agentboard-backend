@@ -250,7 +250,6 @@ jobs:
   publish-reports-staging:
     needs: [gate, prepare-reports-payload-staging]
     if: always() && needs.prepare-reports-payload-staging.result != 'skipped'
-    continue-on-error: true
     uses: matheusmafioletti/agentboard-qa-reports/.github/workflows/publish-report.yml@main
     with:
       run_id: ${{ needs.prepare-reports-payload-staging.outputs.run_id }}

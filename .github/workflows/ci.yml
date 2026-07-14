@@ -600,7 +600,6 @@ jobs:
   publish-reports-pr:
     needs: prepare-reports-payload
     if: always()
-    continue-on-error: true
     uses: matheusmafioletti/agentboard-qa-reports/.github/workflows/publish-report.yml@main
     with:
       run_id: ${{ needs.prepare-reports-payload.outputs.run_id }}
