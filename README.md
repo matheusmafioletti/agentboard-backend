@@ -79,7 +79,7 @@ Images published to GHCR on every push to `main`:
 
 ## Deploy (demo VPS)
 
-On push to `develop`, the CI workflow builds changed service images, pushes to GHCR, and dispatches a deploy to [agentboard-infra](https://github.com/matheusmafioletti/agentboard-infra). After a successful deploy, infra should dispatch `post-deploy-verify` to run staging smoke tests.
+On push to `develop`, the **CD** workflow builds changed service images, pushes to GHCR, and dispatches a deploy to [agentboard-infra](https://github.com/matheusmafioletti/agentboard-infra). After a successful deploy, infra dispatches `post-deploy-verify` to run staging smoke tests.
 
 Orchestration lives in [agentboard-infra](https://github.com/matheusmafioletti/agentboard-infra) (`docker-compose.prod.yml`).
 
@@ -89,8 +89,9 @@ Three workflows run on pull requests and after deploy:
 
 | Workflow | Trigger | Purpose |
 |---|---|---|
-| **CI** | PR + push to `develop`/`main` | Lint, test, build, publish preview images, scoped API tests |
+| **CI** | `pull_request` → `develop`/`main` | Lint, test, build, publish preview images, scoped API tests |
 | **Pre-merge** | CI completed successfully on a PR | Full API + Playwright + Cypress + Selenium `@local` suite |
+| **CD** | `push` → `develop`/`main` | Build, publish GHCR images (`develop`), deploy (`develop`), production simulation (`main`) |
 | **Post-deploy** | `repository_dispatch` `post-deploy-verify` or manual | Staging smoke across API + all E2E frameworks |
 
 ### Branch protection — required checks
