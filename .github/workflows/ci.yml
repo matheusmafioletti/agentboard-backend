@@ -302,7 +302,10 @@ jobs:
       - name: Tear down E2E stack
         if: always()
         working-directory: agentboard-infra
-        run: ./scripts/e2e-down.sh
+        run: |
+          if [[ -f .env.e2e ]]; then
+            ./scripts/e2e-down.sh
+          fi
 
       - uses: actions/upload-artifact@v4
         if: always()
