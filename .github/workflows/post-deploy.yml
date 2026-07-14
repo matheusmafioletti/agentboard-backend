@@ -1,0 +1,260 @@
+name: Post-deploy
+
+on:
+  repository_dispatch:
+    types: [post-deploy-verify]
+  workflow_dispatch:
+
+env:
+  API_REPO: matheusmafioletti/agentboard-api-restassured
+  E2E_PLAYWRIGHT_REPO: matheusmafioletti/agentboard-e2e-playwright
+  E2E_CYPRESS_REPO: matheusmafioletti/agentboard-e2e-cypress
+  E2E_SELENIUM_REPO: matheusmafioletti/agentboard-e2e-selenium
+  INFRA_REPO: matheusmafioletti/agentboard-infra
+  QA_REPORTS_REPO: matheusmafioletti/agentboard-qa-reports
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    outputs:
+      deploy_sha: ${{ steps.meta.outputs.deploy_sha }}
+      should_run: ${{ steps.meta.outputs.should_run }}
+
+    steps:
+      - name: Resolve deploy metadata
+        id: meta
+        run: |
+          AUTH="${{ github.event.client_payload.auth_tag }}"
+          BOARD="${{ github.event.client_payload.board_tag }}"
+          API_DOCS="${{ github.event.client_payload.api_docs_tag }}"
+          SHA="${{ github.event.client_payload.deploy_sha }}"
+
+          if [[ "$AUTH" == "unchanged" && "$BOARD" == "unchanged" && "$API_DOCS" == "unchanged" ]]; then
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          fi
+          echo "deploy_sha=${SHA}" >> "$GITHUB_OUTPUT"
+
+  api-staging:
+    needs: gate
+    if: needs.gate.outputs.should_run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout API tests
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.API_REPO }}
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: "corretto"
+          cache: maven
+
+      - name: Run staging smoke API tests
+        env:
+          AUTH_BASE_URL: ${{ vars.BASE_URL || 'https://agentboard.matheusmafioletti.com' }}
+          BOARD_BASE_URL: ${{ vars.BASE_URL || 'https://agentboard.matheusmafioletti.com' }}
+        run: |
+          mvn test -Pstaging -Dcucumber.filter.tags="@smoke"
+
+      - name: Generate Allure report
+        if: always()
+        run: mvn allure:report
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: api-staging-allure-results
+          path: target/allure-results
+          retention-days: 30
+          if-no-files-found: ignore
+
+  e2e-staging-playwright:
+    needs: gate
+    if: needs.gate.outputs.should_run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.E2E_PLAYWRIGHT_REPO }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+
+      - name: Run @staging tests
+        env:
+          ENVIRONMENT: staging
+          TEST_TAGS: "@staging"
+          BASE_URL: ${{ vars.BASE_URL || 'https://agentboard.matheusmafioletti.com' }}
+          AUTH_API_URL: ${{ vars.AUTH_API_URL || 'https://agentboard.matheusmafioletti.com' }}
+          BOARD_API_URL: ${{ vars.BOARD_API_URL || 'https://agentboard.matheusmafioletti.com' }}
+          E2E_STAGING_USER_EMAIL: ${{ secrets.E2E_STAGING_USER_EMAIL }}
+          E2E_STAGING_USER_PASSWORD: ${{ secrets.E2E_STAGING_USER_PASSWORD }}
+          CI: true
+        run: npm run test:staging -- --project=chromium
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-staging-allure-results
+          path: allure-results/
+          retention-days: 30
+          if-no-files-found: ignore
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-staging-report
+          path: playwright-report/
+          retention-days: 30
+          if-no-files-found: ignore
+
+  e2e-staging-cypress:
+    needs: gate
+    if: needs.gate.outputs.should_run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.E2E_CYPRESS_REPO }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Run @staging tests
+        env:
+          ENVIRONMENT: staging
+          TEST_TAGS: "@staging"
+          BASE_URL: ${{ vars.BASE_URL || 'https://agentboard.matheusmafioletti.com' }}
+          E2E_STAGING_USER_EMAIL: ${{ secrets.E2E_STAGING_USER_EMAIL }}
+          E2E_STAGING_USER_PASSWORD: ${{ secrets.E2E_STAGING_USER_PASSWORD }}
+          CI: true
+        run: npm run test:staging
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cypress-staging-mochawesome
+          path: cypress/reports/
+          retention-days: 30
+          if-no-files-found: ignore
+
+  e2e-staging-selenium:
+    needs: gate
+    if: needs.gate.outputs.should_run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.E2E_SELENIUM_REPO }}
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: "corretto"
+          cache: maven
+
+      - name: Run @staging Selenium tests
+        env:
+          BASE_URL: ${{ vars.BASE_URL || 'https://agentboard.matheusmafioletti.com' }}
+          E2E_STAGING_USER_EMAIL: ${{ secrets.E2E_STAGING_USER_EMAIL }}
+          E2E_STAGING_USER_PASSWORD: ${{ secrets.E2E_STAGING_USER_PASSWORD }}
+        run: |
+          mvn test -Pstaging,headless \
+            -Dbrowser=chrome \
+            -Dheadless=true \
+            -Dcucumber.filter.tags="@e2e and @staging and not @wip"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: selenium-staging-allure-results
+          path: target/allure-results
+          retention-days: 30
+          if-no-files-found: ignore
+
+  rollback:
+    needs: [gate, api-staging, e2e-staging-playwright, e2e-staging-cypress, e2e-staging-selenium]
+    if: |
+      always() && needs.gate.outputs.should_run == 'true' &&
+      (needs.api-staging.result == 'failure' ||
+       needs.e2e-staging-playwright.result == 'failure' ||
+       needs.e2e-staging-cypress.result == 'failure' ||
+       needs.e2e-staging-selenium.result == 'failure')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Trigger backend rollback on VPS
+        uses: peter-evans/repository-dispatch@v4
+        with:
+          token: ${{ secrets.INFRA_DEPLOY_PAT }}
+          repository: ${{ env.INFRA_REPO }}
+          event-type: rollback-backend
+
+  publish-reports-staging:
+    needs: [gate, api-staging, e2e-staging-playwright, e2e-staging-cypress, e2e-staging-selenium]
+    if: always() && needs.gate.outputs.should_run == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Build results payload
+        id: payload
+        run: |
+          SHA="${{ needs.gate.outputs.deploy_sha }}"
+          SHORT_SHA="${SHA:0:7}"
+          RUN_ID="backend-staging-${SHORT_SHA}-$(date +%s)"
+
+          result() {
+            if [[ "${1}" == "success" ]]; then echo "pass"; else echo "fail"; fi
+          }
+
+          cat > /tmp/results.json <<EOF
+          {
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "results": {
+              "api": "$(result '${{ needs.api-staging.result }}')",
+              "e2e-playwright": "$(result '${{ needs.e2e-staging-playwright.result }}')",
+              "e2e-cypress": "$(result '${{ needs.e2e-staging-cypress.result }}')",
+              "e2e-selenium": "$(result '${{ needs.e2e-staging-selenium.result }}')"
+            }
+          }
+          EOF
+
+          echo "run_id=${RUN_ID}" >> "$GITHUB_OUTPUT"
+          echo "results_json=$(jq -c . /tmp/results.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Publish to QA reports portal
+        continue-on-error: true
+        uses: matheusmafioletti/agentboard-qa-reports/.github/workflows/publish-report.yml@main
+        with:
+          run_id: ${{ steps.payload.outputs.run_id }}
+          sha: ${{ needs.gate.outputs.deploy_sha }}
+          env: staging
+          pr_number: ""
+          results_json: ${{ steps.payload.outputs.results_json }}
+          source_repo: ${{ github.repository }}
+          source_run_id: ${{ github.run_id }}
+        secrets:
+          QA_REPORTS_PAT: ${{ secrets.QA_REPORTS_PAT }}
+          SOURCE_DOWNLOAD_TOKEN: ${{ secrets.GITHUB_TOKEN }}
