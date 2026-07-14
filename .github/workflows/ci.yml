@@ -600,6 +600,8 @@ jobs:
   publish-reports-pr:
     needs: prepare-reports-payload
     if: always()
+    permissions:
+      contents: write
     uses: matheusmafioletti/agentboard-qa-reports/.github/workflows/publish-report.yml@main
     with:
       run_id: ${{ needs.prepare-reports-payload.outputs.run_id }}
