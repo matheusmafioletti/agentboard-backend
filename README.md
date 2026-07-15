@@ -79,16 +79,67 @@ Images published to GHCR on every push to `main`:
 
 ## Deploy (demo VPS)
 
-On push to `main`, the CI workflow builds images, pushes to GHCR, and SSH-deploys to the VPS configured via GitHub Secrets:
+On push to `develop`, the **CD** workflow builds changed service images, pushes to GHCR, and dispatches a deploy to [agentboard-infra](https://github.com/matheusmafioletti/agentboard-infra). After a successful deploy, infra dispatches `post-deploy-verify` to run staging smoke tests.
+
+Orchestration lives in [agentboard-infra](https://github.com/matheusmafioletti/agentboard-infra) (`docker-compose.prod.yml`).
+
+## CI/CD pipeline
+
+Three workflows run on pull requests and after deploy:
+
+| Workflow | Trigger | Purpose |
+|---|---|---|
+| **CI** | `pull_request` → `develop`/`main` | Lint, test, build, publish preview images, scoped API tests |
+| **Pre-merge** | Jobs in `ci.yml` after `publish-preview` (separate `pre-merge.yml` activates once merged to `main`) | Full API + Playwright + Cypress + Selenium `@local` suite |
+| **CD** | `push` → `develop`/`main` | Build, publish GHCR images (`develop`), deploy (`develop`), production simulation (`main`) |
+| **Post-deploy** | `repository_dispatch` `post-deploy-verify` or manual | Staging smoke across API + all E2E frameworks |
+
+### Branch protection — required checks
+
+Configure these status checks on `develop` (and `main` if applicable):
+
+**CI workflow (runs on every PR push):**
+
+- `build`
+
+**Pre-merge gate (jobs in CI workflow, after `publish-preview`):**
+
+- `api-local-full`
+- `e2e-playwright`
+- `e2e-cypress`
+- `e2e-selenium`
+
+`api-local-scoped` is informational only (skipped when no deployable service changed) — not a required check.
+
+### Scoped API tests (`api-local-scoped`)
+
+On PRs, after preview images are published, RestAssured tests run against the E2E Docker stack using PR SHA tags. Cucumber tag scope follows `paths-filter` outputs from the `build` job:
+
+| Change detected | Cucumber filter |
+|---|---|
+| `auth-service` (or commons/gradle affecting auth) | `@auth` |
+| `board-service` (or commons/gradle affecting board) | `@board or @projects` |
+| `api-docs-service` only | `@smoke` |
+| Both auth and board (commons/gradle) | `@auth or @board or @projects or @invites` |
+
+### GitHub Secrets
 
 | Secret | Description |
 |--------|-------------|
-| `VPS_HOST` | VPS IP or hostname |
-| `VPS_USER` | SSH user |
-| `VPS_SSH_KEY` | Private SSH key |
-| `VPS_DEPLOY_PATH` | Path to `agentboard-infra` clone (e.g. `/opt/agentboard`) |
+| `INFRA_DEPLOY_PAT` | PAT with `repo` scope — dispatches deploy/rollback to `agentboard-infra` |
+| `QA_REPORTS_PAT` | PAT with `contents: write` on `agentboard-qa-reports` — publishes test reports to GitHub Pages |
+| `E2E_STAGING_USER_EMAIL` | Staging smoke user email (post-deploy workflow) |
+| `E2E_STAGING_USER_PASSWORD` | Staging smoke user password (post-deploy workflow) |
 
-Orchestration lives in [agentboard-infra](https://github.com/agentboard/agentboard-infra) (`docker-compose.prod.yml`).
+### QA reports portal
+
+Test reports are published to [agentboard-qa-reports](https://github.com/matheusmafioletti/agentboard-qa-reports) GitHub Pages (`publish-reports-pr` / `publish-reports-staging`). Requires `QA_REPORTS_PAT` secret.
+
+`publish-reports-pr` does not block merge (`continue-on-error: true`).
+
+### E2E stack composite action
+
+`.github/actions/e2e-stack` checks out `agentboard-infra`, logs into GHCR, and runs `e2e-up.sh` / `seed-e2e-data.sh` or `e2e-down.sh`. Image tags are passed as inputs (`auth_tag`, `board_tag`, `api_docs_tag`, `web_tag`).
 
 ## Structure
 

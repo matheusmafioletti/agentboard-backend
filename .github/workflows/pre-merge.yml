@@ -1,0 +1,12 @@
+name: Pre-merge
+
+# IMPORTANT: GitHub only runs pull_request workflows defined on the default branch (main).
+# Pre-merge gate jobs run inside ci.yml until this file is merged to main.
+on:
+  workflow_dispatch:
+
+jobs:
+  noop:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Pre-merge jobs run in ci.yml — see README"
