@@ -1,9 +1,20 @@
 name: Pre-merge
 
 on:
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
+  workflow_call:
+    inputs:
+      head_sha:
+        description: PR head commit SHA (preview image tag)
+        required: true
+        type: string
+      pr_number:
+        description: Pull request number for QA report publishing
+        required: true
+        type: string
+      ci_run_id:
+        description: CI workflow run ID for artifact correlation
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
       head_sha:
@@ -15,7 +26,7 @@ on:
         default: ""
 
 concurrency:
-  group: pre-merge-${{ github.event.workflow_run.head_sha || inputs.head_sha }}
+  group: pre-merge-${{ inputs.head_sha || github.sha }}
   cancel-in-progress: true
 
 permissions:
@@ -34,9 +45,6 @@ env:
 
 jobs:
   gate:
-    if: |
-      github.event_name == 'workflow_dispatch' ||
-      github.event.workflow_run.event == 'pull_request'
     runs-on: ubuntu-latest
     outputs:
       head_sha: ${{ steps.meta.outputs.head_sha }}
@@ -44,28 +52,17 @@ jobs:
       ci_run_id: ${{ steps.meta.outputs.ci_run_id }}
 
     steps:
-      - name: Verify CI succeeded
-        if: github.event_name == 'workflow_run'
-        run: |
-          CONCLUSION="${{ github.event.workflow_run.conclusion }}"
-          if [[ "$CONCLUSION" != "success" ]]; then
-            echo "Pre-merge skipped: CI concluded with ${CONCLUSION}" >&2
-            exit 1
-          fi
-
       - name: Resolve PR metadata
         id: meta
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          if [[ "${{ github.event_name }}" == "workflow_call" ]]; then
+            echo "head_sha=${{ inputs.head_sha }}" >> "$GITHUB_OUTPUT"
+            echo "pr_number=${{ inputs.pr_number }}" >> "$GITHUB_OUTPUT"
+            echo "ci_run_id=${{ inputs.ci_run_id }}" >> "$GITHUB_OUTPUT"
+          else
             echo "head_sha=${{ inputs.head_sha }}" >> "$GITHUB_OUTPUT"
             echo "pr_number=${{ inputs.pr_number }}" >> "$GITHUB_OUTPUT"
             echo "ci_run_id=" >> "$GITHUB_OUTPUT"
-          else
-            echo "head_sha=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
-            echo "ci_run_id=${{ github.event.workflow_run.id }}" >> "$GITHUB_OUTPUT"
-            PRS='${{ toJson(github.event.workflow_run.pull_requests) }}'
-            PR_NUMBER=$(echo "$PRS" | jq -r '.[0].number // empty')
-            echo "pr_number=${PR_NUMBER}" >> "$GITHUB_OUTPUT"
           fi
 
   resolve-preview:

@@ -246,3 +246,18 @@ jobs:
           api_docs_tag: ${{ github.sha }}
           web_tag: e2e-latest
           action: down
+
+  pre-merge:
+    name: Pre-merge
+    needs: [build, publish-preview, api-local-scoped]
+    if: |
+      always() &&
+      needs.build.result == 'success' &&
+      needs.publish-preview.result == 'success' &&
+      (needs.api-local-scoped.result == 'success' || needs.api-local-scoped.result == 'skipped')
+    uses: ./.github/workflows/pre-merge.yml
+    secrets: inherit
+    with:
+      head_sha: ${{ github.sha }}
+      pr_number: ${{ github.event.pull_request.number }}
+      ci_run_id: ${{ github.run_id }}

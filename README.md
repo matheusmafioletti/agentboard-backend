@@ -90,7 +90,7 @@ Three workflows run on pull requests and after deploy:
 | Workflow | Trigger | Purpose |
 |---|---|---|
 | **CI** | `pull_request` → `develop`/`main` | Lint, test, build, publish preview images, scoped API tests |
-| **Pre-merge** | `workflow_run` after **CI** succeeds on PRs | Full API + Playwright + Cypress + Selenium `@local` suite |
+| **Pre-merge** | `workflow_call` from **CI** after it succeeds | Full API + Playwright + Cypress + Selenium `@local` suite |
 | **CD** | `push` → `develop`/`main` | Build, publish GHCR images (`develop`), deploy (`develop`), production simulation (`main`) |
 | **Post-deploy** | `repository_dispatch` `post-deploy-verify` or manual | Staging smoke across API + all E2E frameworks |
 
@@ -102,7 +102,7 @@ Configure these status checks on `develop` (and `main` if applicable):
 
 - `build`
 
-**Pre-merge workflow (starts only after CI completes successfully):**
+**Pre-merge workflow (invoked by CI only after build and preview images succeed):**
 
 - `gate`
 - `api-local-full`
@@ -110,7 +110,7 @@ Configure these status checks on `develop` (and `main` if applicable):
 - `e2e-cypress`
 - `e2e-selenium`
 
-When CI fails, `gate` fails and the E2E jobs do not run — keeping `gate` as a required check blocks merge without wasting runners on the full suite.
+Checks appear as `Pre-merge / <job>`. If CI fails, the `pre-merge` caller job is skipped and the E2E suite does not run.
 
 `api-local-scoped` is informational only (skipped when no deployable service changed) — not a required check.
 
