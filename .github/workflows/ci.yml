@@ -255,6 +255,11 @@ jobs:
       needs.build.result == 'success' &&
       needs.publish-preview.result == 'success' &&
       (needs.api-local-scoped.result == 'success' || needs.api-local-scoped.result == 'skipped')
+    permissions:
+      contents: write
+      packages: read
+      pull-requests: read
+      actions: read
     uses: ./.github/workflows/pre-merge.yml
     secrets: inherit
     with:
