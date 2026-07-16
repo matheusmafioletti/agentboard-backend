@@ -104,13 +104,12 @@ Configure these status checks on `develop` (and `main` if applicable):
 
 **Pre-merge workflow (invoked by CI only after build and preview images succeed):**
 
-- `gate`
-- `api-local-full`
-- `e2e-playwright`
-- `e2e-cypress`
-- `e2e-selenium`
+- `Pre-merge / api-local-full`
+- `Pre-merge / e2e-playwright`
+- `Pre-merge / e2e-cypress`
+- `Pre-merge / e2e-selenium`
 
-Checks appear as `Pre-merge / <job>`. If CI fails, the `pre-merge` caller job is skipped and the E2E suite does not run.
+Checks appear with the `Pre-merge /` prefix because the suite runs as a reusable workflow called from CI. If CI fails, the `pre-merge` caller job is skipped and the E2E suite does not run.
 
 `api-local-scoped` is informational only (skipped when no deployable service changed) — not a required check.
 
