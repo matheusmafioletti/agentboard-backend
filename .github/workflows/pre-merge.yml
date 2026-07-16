@@ -1,13 +1,21 @@
 name: Pre-merge
 
 on:
-  pull_request:
-    branches: [develop, main]
-    types: [opened, synchronize, reopened]
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
   workflow_dispatch:
+    inputs:
+      head_sha:
+        description: Commit SHA to test against preview images
+        required: true
+      pr_number:
+        description: PR number for QA report publishing
+        required: false
+        default: ""
 
 concurrency:
-  group: pre-merge-${{ github.event.pull_request.number }}
+  group: pre-merge-${{ github.event.workflow_run.head_sha || inputs.head_sha }}
   cancel-in-progress: true
 
 permissions:
@@ -26,57 +34,39 @@ env:
 
 jobs:
   gate:
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.event == 'pull_request'
     runs-on: ubuntu-latest
     outputs:
       head_sha: ${{ steps.meta.outputs.head_sha }}
       pr_number: ${{ steps.meta.outputs.pr_number }}
-      ci_run_id: ${{ steps.wait-ci.outputs.run_id }}
+      ci_run_id: ${{ steps.meta.outputs.ci_run_id }}
 
     steps:
+      - name: Verify CI succeeded
+        if: github.event_name == 'workflow_run'
+        run: |
+          CONCLUSION="${{ github.event.workflow_run.conclusion }}"
+          if [[ "$CONCLUSION" != "success" ]]; then
+            echo "Pre-merge skipped: CI concluded with ${CONCLUSION}" >&2
+            exit 1
+          fi
+
       - name: Resolve PR metadata
         id: meta
         run: |
-          echo "head_sha=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
-          echo "pr_number=${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
-
-      - name: Wait for CI workflow to succeed
-        id: wait-ci
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          SHA="${{ github.event.pull_request.head.sha }}"
-          REPO="${{ github.repository }}"
-
-          for _ in $(seq 1 90); do
-            RUN=$(gh api \
-              "repos/${REPO}/actions/workflows/ci.yml/runs?head_sha=${SHA}&event=pull_request&per_page=1" \
-              --jq '.workflow_runs[0]')
-
-            if [[ -z "$RUN" || "$RUN" == "null" ]]; then
-              sleep 20
-              continue
-            fi
-
-            STATUS=$(echo "$RUN" | jq -r '.status')
-            CONCLUSION=$(echo "$RUN" | jq -r '.conclusion')
-            RUN_ID=$(echo "$RUN" | jq -r '.id')
-
-            if [[ "$STATUS" != "completed" ]]; then
-              sleep 20
-              continue
-            fi
-
-            if [[ "$CONCLUSION" == "success" ]]; then
-              echo "run_id=${RUN_ID}" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
-
-            echo "CI finished with conclusion: ${CONCLUSION}" >&2
-            exit 1
-          done
-
-          echo "Timed out waiting for CI workflow" >&2
-          exit 1
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "head_sha=${{ inputs.head_sha }}" >> "$GITHUB_OUTPUT"
+            echo "pr_number=${{ inputs.pr_number }}" >> "$GITHUB_OUTPUT"
+            echo "ci_run_id=" >> "$GITHUB_OUTPUT"
+          else
+            echo "head_sha=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
+            echo "ci_run_id=${{ github.event.workflow_run.id }}" >> "$GITHUB_OUTPUT"
+            PRS='${{ toJson(github.event.workflow_run.pull_requests) }}'
+            PR_NUMBER=$(echo "$PRS" | jq -r '.[0].number // empty')
+            echo "pr_number=${PR_NUMBER}" >> "$GITHUB_OUTPUT"
+          fi
 
   resolve-preview:
     needs: gate
