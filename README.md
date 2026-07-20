@@ -2,7 +2,35 @@
 
 AgentBoard backend — Gradle multi-project containing four Spring Boot 3.2 microservices.
 
-![CI](https://github.com/agentboard/agentboard-backend/actions/workflows/ci.yml/badge.svg)
+**Demo:** https://agentboard.matheusmafioletti.com  
+**Swagger UI:** https://agentboard.matheusmafioletti.com/api/swagger  
+**QA Reports:** https://matheusmafioletti.github.io/agentboard-qa-reports/
+
+![CI](https://github.com/matheusmafioletti/agentboard-backend/actions/workflows/ci.yml/badge.svg)
+
+## Architecture
+
+AgentBoard is a distributed system: the React web app and MCP server reach backend services through nginx in production; locally, services run on separate ports.
+
+```mermaid
+flowchart LR
+  web[agentboard_web] -->|HTTP| nginx[nginx]
+  mcp[agentboard_mcp_server] -->|HTTP| board[board_service]
+  nginx --> auth[auth_service_8080]
+  nginx --> board
+  auth --> pg[(PostgreSQL_16)]
+  board --> pg
+  apiDocs[api_docs_service] --> auth
+  apiDocs --> board
+```
+
+Static diagram (for GitHub mobile): [`docs/screenshots/architecture.png`](docs/screenshots/architecture.png)
+
+## Screenshots
+
+| Architecture | Swagger UI | CI pipeline |
+|---|---|---|
+| ![Architecture](docs/screenshots/architecture.png) | ![Swagger UI](docs/screenshots/swagger-ui.webp) | ![CI pipeline](docs/screenshots/ci-pipeline.webp) |
 
 ## Prerequisites
 
@@ -38,7 +66,7 @@ Pact contracts and MCP JSON schemas remain the CI integration source of truth; O
 
 ```bash
 # Clone
-git clone https://github.com/agentboard/agentboard-backend
+git clone https://github.com/matheusmafioletti/agentboard-backend
 cd agentboard-backend
 
 # Compile all subprojects
@@ -53,6 +81,18 @@ cd agentboard-backend
 # Full CI build
 ./gradlew build
 ```
+
+## Code coverage
+
+JaCoCo enforces a **70% minimum** line coverage per subproject (`jacocoCoverageMinimum = 0.70` in `build.gradle`).
+
+Excluded from coverage metrics: DTOs, configuration classes, `*Application` entry points, and generated code.
+
+```bash
+./gradlew test jacocoRootReport jacocoCoverageCheck
+```
+
+HTML report: `build/reports/jacoco/root/html/index.html`. CI uploads coverage and posts a PR comment via `Madrapps/jacoco-report`.
 
 ## On Windows
 
@@ -73,9 +113,9 @@ docker build -f api-docs-service/Dockerfile -t agentboard-api-docs:local .
 
 Images published to GHCR on every push to `main`:
 
-- `ghcr.io/agentboard/agentboard-auth`
-- `ghcr.io/agentboard/agentboard-board`
-- `ghcr.io/agentboard/agentboard-api-docs`
+- `ghcr.io/matheusmafioletti/agentboard-auth`
+- `ghcr.io/matheusmafioletti/agentboard-board`
+- `ghcr.io/matheusmafioletti/agentboard-api-docs`
 
 ## Deploy (demo VPS)
 
